@@ -4,7 +4,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"   # host 6380 (6379 used by another local stack); internal stays 6379
     volumes:
       - redis_data:/data
     healthcheck:
@@ -99,7 +99,7 @@ services:
       context: ./api-gateway
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8000"   # host 8080 (8000 used by another local stack); internal stays 8000
     env_file: .env
     depends_on:
       - ingestion-service
