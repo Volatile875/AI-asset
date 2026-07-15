@@ -114,7 +114,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "8501:8501"   # Streamlit UI (native port; must NOT be 3000 - see frontend/Dockerfile)
     env_file: .env
     environment:
       GATEWAY_URL: http://api-gateway:8000

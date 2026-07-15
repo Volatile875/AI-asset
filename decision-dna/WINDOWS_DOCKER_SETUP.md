@@ -25,7 +25,7 @@ The manual sections below explain exactly what the script does, and are the fall
 
 ## 0. What you're setting up
 
-Nine containers orchestrated by `docker-compose.yml`: Redis, Neo4j, six FastAPI services, and a Streamlit UI. When it's running you'll open the UI at **http://localhost:3000**.
+Nine containers orchestrated by `docker-compose.yml`: Redis, Neo4j, six FastAPI services, and a Streamlit UI. When it's running you'll open the UI at **http://localhost:8501**.
 
 Two files are intentionally **not** in git and must be created on your machine:
 - **`.env`** — your API keys and config (Section 4).
@@ -173,7 +173,7 @@ LOG_LEVEL=INFO
 
 ## 5. Check host ports
 
-By default the stack uses standard host ports: API gateway **8000**, Redis **6379**, UI **3000**, Neo4j **7474/7687**, services **8001–8005**. On a typical machine these are free and you can skip straight to Section 6.
+By default the stack uses standard host ports: API gateway **8000**, Redis **6379**, UI **8501**, Neo4j **7474/7687**, services **8001–8005**. On a typical machine these are free and you can skip straight to Section 6.
 
 Check the two most likely to clash:
 ```powershell
@@ -250,7 +250,7 @@ Invoke-RestMethod http://localhost:8000/api/v1/ingest/status/<job_id>
 
 | What | URL |
 |---|---|
-| **Streamlit UI** | http://localhost:3000 |
+| **Streamlit UI** | http://localhost:8501 |
 | API Gateway | http://localhost:8000 |
 | Scalar API docs | http://localhost:8000/scalar |
 | Neo4j Browser | http://localhost:7474  (user `neo4j`, password `password123`) |
@@ -285,7 +285,7 @@ docker compose up -d --force-recreate embedding-service query-service timeline-s
 | `Bind for 0.0.0.0:XXXX failed: port is already allocated` | Another app/container holds that host port | Find it: `docker ps --filter publish=XXXX`. Either stop it, or change the left-hand host port in `docker-compose.yml` (e.g. `"8081:8000"`). |
 | `api-gateway` exits: `cannot import name 'get_scalar_api_reference'` | Old `main.py` without the import fix | Pull a repo that includes the resilient import in `api-gateway/app/main.py`. |
 | Gateway `unreachable` for some services in `/health` | Those services crashed at startup | `docker compose logs <service>` and match the error above. |
-| UI (`localhost:3000`) shows **"Connection error"**; browser console spams `localhost:8501 ... ERR_CONNECTION_REFUSED` | Streamlit told the browser to use its default port 8501 instead of 3000 | Pull a repo where `frontend/Dockerfile` sets `--browser.serverPort=3000`, rebuild the frontend (`docker compose up -d --build frontend`), then hard-refresh the browser (Ctrl+Shift+R). |
+| UI shows **"Connection error"**; console spams `localhost:8501/_stcore/health ... ERR_CONNECTION_REFUSED` (typically when the UI is on port 3000) | Streamlit's client bundle has a hardcoded dev-mode heuristic (`window.location.port === 3000` ⇒ assume backend on 8501). Serving the UI on **3000** always breaks it; `--browser.serverPort` does NOT override it. | Serve the UI on **8501** (this repo now does: `frontend/Dockerfile` uses `--server.port=8501`, compose maps `8501:8501`). `git pull`, rebuild the frontend, hard-refresh (Ctrl+Shift+R), and open **http://localhost:8501**. |
 | Everything slow / builds hang | Docker has too little RAM, or repo on a slow share | Raise Docker RAM to 8 GB+; move the repo to WSL2/local disk. |
 | Volume mount errors for `./data` | Drive not shared with Docker | Docker Desktop → Settings → Resources → File Sharing, add the drive. |
 

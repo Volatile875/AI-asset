@@ -20,7 +20,7 @@ Six FastAPI microservices behind an API gateway, plus a Streamlit UI and a stand
 | graph-service | 8003 | Builds/queries the Neo4j knowledge graph (Person/Project/Decision/Meeting/Ticket/Email nodes) |
 | query-service | 8004 | The core: a LangGraph 5-agent pipeline (Planner → Search → Timeline → Decision → Answer) |
 | timeline-service | 8005 | Uses Claude to extract structured, dated timeline events from Pinecone hits |
-| frontend | 3000 | Streamlit UI: Ask / Timeline / Graph / Ingest / Health |
+| frontend | 8501 | Streamlit UI: Ask / Timeline / Graph / Ingest / Health |
 | mcp-server | stdio | FastMCP server for live Jira status + SQLite history; run separately, not in compose |
 
 Data path: raw JSON in `data/synthetic/{emails,meetings,jira}/` → ingestion normalizes → embedding (Pinecone vectors) + graph (Neo4j) → query-service orchestrates retrieval across both plus timeline-service to answer.
@@ -63,7 +63,7 @@ python scripts/seed_neo4j.py --dump-cypher data/decisiondna_seed.cypher
 python mcp-server/server.py
 ```
 
-Access points after `docker-compose up`: UI http://localhost:3000 · Gateway http://localhost:8000 · Scalar docs http://localhost:8000/scalar · Neo4j browser http://localhost:7474.
+Access points after `docker-compose up`: UI http://localhost:8501 · Gateway http://localhost:8000 · Scalar docs http://localhost:8000/scalar · Neo4j browser http://localhost:7474.
 
 Iterating on one service without a full rebuild:
 ```bash

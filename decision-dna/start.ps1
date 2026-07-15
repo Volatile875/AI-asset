@@ -231,7 +231,7 @@ LOG_LEVEL=INFO
 
 # ------------------------------------------------------------------ 4. PORTS
 Write-Step "4/6  Host port check"
-$portsToCheck = @{ 3000 = "Streamlit UI"; 8000 = "API gateway"; 7474 = "Neo4j browser"; 6379 = "Redis" }
+$portsToCheck = @{ 8501 = "Streamlit UI"; 8000 = "API gateway"; 7474 = "Neo4j browser"; 6379 = "Redis" }
 foreach ($p in ($portsToCheck.Keys | Sort-Object)) {
     $inUse = $false
     try { $inUse = (Test-NetConnection -ComputerName localhost -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded } catch {}
@@ -318,9 +318,9 @@ foreach ($m in $ServiceMap) {
     }
 }
 
-# Streamlit UI reachability (published on host 3000).
+# Streamlit UI reachability (published on host 8501).
 $uiOk = $false
-try { $uiOk = ((Invoke-WebRequest -Uri "http://localhost:3000" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop).StatusCode -eq 200) } catch {}
+try { $uiOk = ((Invoke-WebRequest -Uri "http://localhost:8501" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop).StatusCode -eq 200) } catch {}
 if ($uiOk) { Write-Host "      - frontend    reachable (HTTP 200)" -ForegroundColor Green }
 else       { Write-Host "      - frontend    NOT reachable" -ForegroundColor Red }
 
@@ -338,7 +338,7 @@ Write-Host "`n==================================================================
 if ($problems.Count -eq 0 -and $uiOk) {
     Write-Host "  SUCCESS - DecisionDNA is up and every service is healthy + ready." -ForegroundColor Green
     Write-Host "==================================================================" -ForegroundColor Magenta
-    Write-Host "  Open the UI:        http://localhost:3000"
+    Write-Host "  Open the UI:        http://localhost:8501"
     Write-Host "  API gateway:        http://localhost:$gatewayPort"
     Write-Host "  API docs (Scalar):  http://localhost:$gatewayPort/scalar"
     Write-Host "  Neo4j browser:      http://localhost:7474   (neo4j / password123)"
@@ -358,6 +358,6 @@ if ($problems.Count -eq 0 -and $uiOk) {
     Write-Host "    2. Ensure a Pinecone index named 'ai-asset' (1024 dims, cosine) exists"
     Write-Host "    3. Re-run this script (it force-recreates, so the new keys take effect)"
     Write-Host "`n  The per-service logs above (and $script:LogFile) show the exact error."
-    Write-Host "  The UI at http://localhost:3000 works regardless for browsing."
+    Write-Host "  The UI at http://localhost:8501 works regardless for browsing."
     Finish 3
 }
