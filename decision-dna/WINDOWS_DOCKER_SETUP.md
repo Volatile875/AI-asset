@@ -6,6 +6,23 @@ A step-by-step runbook for setting up and running the DecisionDNA stack on a **W
 
 ---
 
+## ⚡ Fast path: use the launcher script
+
+After installing the prerequisites (Section 1) and getting the code (Section 2), you can let the bundled script do Sections 3–6 for you. From the `decision-dna\` folder in **PowerShell**:
+
+```powershell
+# one-time, if PowerShell blocks scripts:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+.\start.ps1
+```
+
+`start.ps1` runs preflight checks, generates `corp-ca.crt` and a `.env` template if missing, builds, starts the stack, and then polls the gateway's health endpoint and prints a per-service PASS/FAIL summary with the URLs. If it reports placeholder keys, fill in `.env` (Section 4) and re-run. Other handy modes: `.\start.ps1 -SkipBuild` and `.\start.ps1 -Down`.
+
+The manual sections below explain exactly what the script does, and are the fallback if anything needs adjusting.
+
+---
+
 ## 0. What you're setting up
 
 Nine containers orchestrated by `docker-compose.yml`: Redis, Neo4j, six FastAPI services, and a Streamlit UI. When it's running you'll open the UI at **http://localhost:3000**.
@@ -116,26 +133,26 @@ notepad .env
 Paste this, fill in the three real keys, then **save**:
 
 ```env
-# ── SECRETS (fill these in) ──
+# --- SECRETS (fill these in) ---
 ANTHROPIC_API_KEY=your-anthropic-key
 OPENAI_API_KEY=your-openai-key
 PINECONE_API_KEY=your-pinecone-key
 
-# ── Pinecone (an index with this exact name + dimension must already exist) ──
+# --- Pinecone (an index with this exact name + dimension must already exist) ---
 PINECONE_ENVIRONMENT=us-east-1
 PINECONE_INDEX_NAME=ai-asset
 EMBEDDING_MODEL=text-embedding-3-large
 EMBEDDING_DIMENSIONS=1024
 
-# ── Neo4j (local container; matches docker-compose NEO4J_AUTH) ──
+# --- Neo4j (local container; matches docker-compose NEO4J_AUTH) ---
 NEO4J_URI=bolt://neo4j:7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=password123
 
-# ── Redis (local container) ──
+# --- Redis (local container) ---
 REDIS_URL=redis://redis:6379
 
-# ── Inter-service URLs (docker network names — do not change) ──
+# --- Inter-service URLs (docker network names - do not change) ---
 INGESTION_SERVICE_URL=http://ingestion-service:8001
 EMBEDDING_SERVICE_URL=http://embedding-service:8002
 GRAPH_SERVICE_URL=http://graph-service:8003
@@ -143,7 +160,7 @@ QUERY_SERVICE_URL=http://query-service:8004
 TIMELINE_SERVICE_URL=http://timeline-service:8005
 GATEWAY_URL=http://api-gateway:8000
 
-# ── App ──
+# --- App ---
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 ```
@@ -154,17 +171,22 @@ LOG_LEVEL=INFO
 
 ---
 
-## 5. Check host ports (and optionally simplify)
+## 5. Check host ports
 
-The committed `docker-compose.yml` publishes the API gateway on host port **8080** and Redis on **6380** (these were chosen to avoid a conflict on the original machine). The UI (**3000**), Neo4j (**7474/7687**), and services (**8001–8005**) use standard ports.
+By default the stack uses standard host ports: API gateway **8000**, Redis **6379**, UI **3000**, Neo4j **7474/7687**, services **8001–8005**. On a typical machine these are free and you can skip straight to Section 6.
 
-Check whether the standard gateway port 8000 is free on your machine:
+Check the two most likely to clash:
 ```powershell
-Test-NetConnection -ComputerName localhost -Port 8000   # TcpTestSucceeded = True means something is using it
+Test-NetConnection -ComputerName localhost -Port 8000   # TcpTestSucceeded = True means it's taken
+Test-NetConnection -ComputerName localhost -Port 6379
 ```
 
-- **If 8000 is free** and you'd like the bundled `scripts\ingest_all.py` to work unmodified, edit `docker-compose.yml` and change the api-gateway line `"8080:8000"` back to `"8000:8000"`. Then use **8000** everywhere below instead of 8080.
-- **Otherwise** leave it at 8080 and use the ingestion command in Section 7b (which targets 8080 directly).
+If either is already in use, don't edit `docker-compose.yml` — just add an override to your `.env` and re-run:
+```env
+GATEWAY_HOST_PORT=8080
+REDIS_HOST_PORT=6380
+```
+The gateway's internal port stays 8000, so the **UI keeps working** (it uses Docker's internal network). But `scripts\ingest_all.py` hits `localhost:8000` directly — if you set `GATEWAY_HOST_PORT` to something else, use that port in the `curl`/`Invoke-RestMethod` examples below instead (run `docker compose port api-gateway 8000` to confirm it). `start.ps1` detects the gateway port automatically either way.
 
 ---
 
@@ -183,9 +205,9 @@ Watch it come up:
 docker compose ps
 ```
 
-Wait ~60 seconds for Neo4j to report `(healthy)`, then check the gateway (use 8000 if you reverted the port):
+Wait ~60 seconds for Neo4j to report `(healthy)`, then check the gateway:
 ```powershell
-curl.exe http://localhost:8080/health
+curl.exe http://localhost:8000/health
 ```
 A healthy response looks like:
 ```json
@@ -210,17 +232,17 @@ python scripts\generate_data.py
 ### 7b. Trigger ingestion (no Python needed)
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/ingest `
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/ingest `
   -ContentType 'application/json' `
   -Body '{"data_dir":"/app/data/synthetic","trigger_embedding":true,"trigger_graph":true}'
 ```
 
 This returns a `job_id`. Poll status:
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/v1/ingest/status/<job_id>
+Invoke-RestMethod http://localhost:8000/api/v1/ingest/status/<job_id>
 ```
 
-> If you reverted to port 8000 in Section 5, you can instead just run `python scripts\ingest_all.py` (it targets `localhost:8000`).
+> With the default port 8000, you can instead just run `python scripts\ingest_all.py` (it targets `localhost:8000`).
 
 ---
 
@@ -229,8 +251,8 @@ Invoke-RestMethod http://localhost:8080/api/v1/ingest/status/<job_id>
 | What | URL |
 |---|---|
 | **Streamlit UI** | http://localhost:3000 |
-| API Gateway | http://localhost:8080 |
-| Scalar API docs | http://localhost:8080/scalar |
+| API Gateway | http://localhost:8000 |
+| Scalar API docs | http://localhost:8000/scalar |
 | Neo4j Browser | http://localhost:7474  (user `neo4j`, password `password123`) |
 
 The UI reaches the gateway over Docker's internal network, so it works regardless of which host port the gateway is published on.
