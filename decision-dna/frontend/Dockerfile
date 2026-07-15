@@ -12,4 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN cat /usr/local/share/ca-certificates/corp-ca.crt >> "$(python -c 'import certifi; print(certifi.where())')"
 COPY . .
 EXPOSE 3000
-CMD ["streamlit", "run", "app.py", "--server.port=3000", "--server.address=0.0.0.0", "--server.headless=true"]
+# --browser.serverPort must match the HOST port users hit (3000), or the browser's
+# websocket falls back to Streamlit's default 8501 and the UI shows a "Connection error".
+CMD ["streamlit", "run", "app.py", "--server.port=3000", "--server.address=0.0.0.0", "--server.headless=true", "--browser.serverPort=3000", "--browser.gatherUsageStats=false"]

@@ -285,6 +285,7 @@ docker compose up -d --force-recreate embedding-service query-service timeline-s
 | `Bind for 0.0.0.0:XXXX failed: port is already allocated` | Another app/container holds that host port | Find it: `docker ps --filter publish=XXXX`. Either stop it, or change the left-hand host port in `docker-compose.yml` (e.g. `"8081:8000"`). |
 | `api-gateway` exits: `cannot import name 'get_scalar_api_reference'` | Old `main.py` without the import fix | Pull a repo that includes the resilient import in `api-gateway/app/main.py`. |
 | Gateway `unreachable` for some services in `/health` | Those services crashed at startup | `docker compose logs <service>` and match the error above. |
+| UI (`localhost:3000`) shows **"Connection error"**; browser console spams `localhost:8501 ... ERR_CONNECTION_REFUSED` | Streamlit told the browser to use its default port 8501 instead of 3000 | Pull a repo where `frontend/Dockerfile` sets `--browser.serverPort=3000`, rebuild the frontend (`docker compose up -d --build frontend`), then hard-refresh the browser (Ctrl+Shift+R). |
 | Everything slow / builds hang | Docker has too little RAM, or repo on a slow share | Raise Docker RAM to 8 GB+; move the repo to WSL2/local disk. |
 | Volume mount errors for `./data` | Drive not shared with Docker | Docker Desktop → Settings → Resources → File Sharing, add the drive. |
 
