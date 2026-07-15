@@ -1,0 +1,32 @@
+[
+  {
+    "id": "EMAIL-001",
+    "from": "Ravi Sharma",
+    "to": ["Priya Patel", "Alex Johnson"],
+    "date": "2024-01-15T10:30:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but there are valid points about vendor lock-in. We should not ignore the security implications of moving our authentication layer to a new cloud provider without a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nRavi",
+    "project": "CloudMigration",
+    "tags": ["migration", "azure"]
+  },
+  {
+    "id": "EMAIL-002",
+    "from": "Priya Patel",
+    "to": ["Ravi Sharma", "Neha Gupta"],
+    "date": "2024-01-16T14:20:00",
+    "subject": "Re: Cloud Migration Discussion - Vendor X Evaluation",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nAnjali had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nPriya",
+    "project": "DataPlatform",
+    "tags": ["vendor", "evaluation"]
+  },
+  {
+    "id": "EMAIL-003",
+    "from": "Michael Brown",
+    "to": ["Sunita Rao", "John Smith"],
+    "date": "2024-02-05T09:15:00",
+    "subject": "Security Risk in Auth Refactor",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. I've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nMichael",
+    "project": "AuthRefactor",
+    "tags": ["security", "risk"]
+  }
+]

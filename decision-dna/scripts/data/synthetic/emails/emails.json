@@ -1,0 +1,1602 @@
+[
+  {
+    "id": "EMAIL-001",
+    "from": "John Smith",
+    "to": [
+      "Alex Johnson",
+      "Michael Brown",
+      "Sunita Rao"
+    ],
+    "date": "2024-09-22T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Alex Johnson\n- Security review: Michael Brown\n- Timeline owner: Sunita Rao\n\nAny objections should be raised by EOD Friday.\n\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-002",
+    "from": "Neha Gupta",
+    "to": [
+      "Sunita Rao",
+      "Alex Johnson",
+      "Ravi Sharma"
+    ],
+    "date": "2024-10-02T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Sunita Rao\n- Security review: Alex Johnson\n- Timeline owner: Ravi Sharma\n\nAny objections should be raised by EOD Friday.\n\nNeha Gupta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-003",
+    "from": "Priya Patel",
+    "to": [
+      "Anjali Mehta",
+      "Alex Johnson",
+      "Neha Gupta"
+    ],
+    "date": "2024-10-11T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Anjali Mehta\n- Security review: Alex Johnson\n- Timeline owner: Neha Gupta\n\nAny objections should be raised by EOD Friday.\n\nPriya Patel",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-004",
+    "from": "Priya Patel",
+    "to": [
+      "John Smith",
+      "Neha Gupta",
+      "Pooja Verma"
+    ],
+    "date": "2024-01-16T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nPriya Patel",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-005",
+    "from": "Pooja Verma",
+    "to": [
+      "Priya Patel",
+      "David Chen",
+      "Alex Johnson"
+    ],
+    "date": "2024-06-15T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nPooja Verma",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-006",
+    "from": "Priya Patel",
+    "to": [
+      "Ravi Sharma",
+      "John Smith",
+      "Neha Gupta"
+    ],
+    "date": "2024-07-07T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nPriya Patel",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-007",
+    "from": "Sunita Rao",
+    "to": [
+      "John Smith",
+      "Ravi Sharma",
+      "Priya Patel"
+    ],
+    "date": "2024-07-21T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nSunita Rao",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-008",
+    "from": "John Smith",
+    "to": [
+      "Pooja Verma",
+      "Neha Gupta",
+      "Priya Patel"
+    ],
+    "date": "2024-12-31T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-009",
+    "from": "Pooja Verma",
+    "to": [
+      "Alex Johnson",
+      "Sunita Rao",
+      "Michael Brown"
+    ],
+    "date": "2024-12-12T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Alex Johnson\n- Security review: Sunita Rao\n- Timeline owner: Michael Brown\n\nAny objections should be raised by EOD Friday.\n\nPooja Verma",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-010",
+    "from": "David Chen",
+    "to": [
+      "Anjali Mehta",
+      "Sunita Rao",
+      "Pooja Verma"
+    ],
+    "date": "2024-11-24T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nDavid Chen",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-011",
+    "from": "Anjali Mehta",
+    "to": [
+      "Michael Brown",
+      "Priya Patel",
+      "Sunita Rao"
+    ],
+    "date": "2024-04-07T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nAnjali Mehta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-012",
+    "from": "John Smith",
+    "to": [
+      "Neha Gupta",
+      "Anjali Mehta",
+      "Pooja Verma"
+    ],
+    "date": "2024-08-03T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nNeha Gupta had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-013",
+    "from": "David Chen",
+    "to": [
+      "Michael Brown",
+      "Sunita Rao",
+      "Priya Patel"
+    ],
+    "date": "2024-07-12T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nDavid Chen",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-014",
+    "from": "Priya Patel",
+    "to": [
+      "Ravi Sharma",
+      "Neha Gupta",
+      "John Smith"
+    ],
+    "date": "2024-02-16T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nRavi Sharma had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nPriya Patel",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-015",
+    "from": "Pooja Verma",
+    "to": [
+      "Anjali Mehta",
+      "Alex Johnson",
+      "Sunita Rao"
+    ],
+    "date": "2024-10-18T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nAnjali Mehta had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nPooja Verma",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-016",
+    "from": "Pooja Verma",
+    "to": [
+      "John Smith",
+      "Sunita Rao",
+      "Ravi Sharma"
+    ],
+    "date": "2024-05-03T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: John Smith\n- Security review: Sunita Rao\n- Timeline owner: Ravi Sharma\n\nAny objections should be raised by EOD Friday.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-017",
+    "from": "Sunita Rao",
+    "to": [
+      "David Chen",
+      "Neha Gupta",
+      "Alex Johnson"
+    ],
+    "date": "2024-06-14T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nSunita Rao",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-018",
+    "from": "Priya Patel",
+    "to": [
+      "Alex Johnson",
+      "David Chen",
+      "Ravi Sharma"
+    ],
+    "date": "2024-03-03T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nAlex Johnson had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nPriya Patel",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-019",
+    "from": "Pooja Verma",
+    "to": [
+      "Ravi Sharma",
+      "Alex Johnson",
+      "Neha Gupta"
+    ],
+    "date": "2024-10-27T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-020",
+    "from": "Pooja Verma",
+    "to": [
+      "Priya Patel",
+      "Anjali Mehta",
+      "Michael Brown"
+    ],
+    "date": "2024-09-29T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nPooja Verma",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-021",
+    "from": "David Chen",
+    "to": [
+      "John Smith",
+      "Priya Patel",
+      "Alex Johnson"
+    ],
+    "date": "2024-07-05T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nJohn Smith had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nDavid Chen",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-022",
+    "from": "Michael Brown",
+    "to": [
+      "Neha Gupta",
+      "Priya Patel",
+      "Pooja Verma"
+    ],
+    "date": "2024-06-21T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Neha Gupta\n- Security review: Priya Patel\n- Timeline owner: Pooja Verma\n\nAny objections should be raised by EOD Friday.\n\nMichael Brown",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-023",
+    "from": "David Chen",
+    "to": [
+      "Anjali Mehta",
+      "Ravi Sharma",
+      "Neha Gupta"
+    ],
+    "date": "2024-04-26T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nDavid Chen",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-024",
+    "from": "Ravi Sharma",
+    "to": [
+      "Priya Patel",
+      "Pooja Verma",
+      "John Smith"
+    ],
+    "date": "2024-05-01T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nRavi Sharma",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-025",
+    "from": "Michael Brown",
+    "to": [
+      "Anjali Mehta",
+      "David Chen",
+      "Neha Gupta"
+    ],
+    "date": "2024-04-09T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nMichael Brown",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-026",
+    "from": "Neha Gupta",
+    "to": [
+      "Alex Johnson",
+      "Ravi Sharma",
+      "Michael Brown"
+    ],
+    "date": "2024-06-17T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nNeha Gupta",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-027",
+    "from": "John Smith",
+    "to": [
+      "Neha Gupta",
+      "Ravi Sharma",
+      "Sunita Rao"
+    ],
+    "date": "2024-03-18T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-028",
+    "from": "Ravi Sharma",
+    "to": [
+      "Michael Brown",
+      "Alex Johnson",
+      "Sunita Rao"
+    ],
+    "date": "2024-12-01T00:00:00",
+    "subject": "Rejected Proposal: Kubernetes Migration",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Michael Brown\n- Security review: Alex Johnson\n- Timeline owner: Sunita Rao\n\nAny objections should be raised by EOD Friday.\n\nRavi Sharma",
+    "project": "DataPlatform",
+    "tags": [
+      "rejection"
+    ]
+  },
+  {
+    "id": "EMAIL-029",
+    "from": "John Smith",
+    "to": [
+      "Alex Johnson",
+      "Neha Gupta",
+      "Ravi Sharma"
+    ],
+    "date": "2024-02-20T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-030",
+    "from": "David Chen",
+    "to": [
+      "Priya Patel",
+      "Pooja Verma",
+      "Ravi Sharma"
+    ],
+    "date": "2024-09-29T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Priya Patel\n- Security review: Pooja Verma\n- Timeline owner: Ravi Sharma\n\nAny objections should be raised by EOD Friday.\n\nDavid Chen",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-031",
+    "from": "John Smith",
+    "to": [
+      "Ravi Sharma",
+      "Priya Patel",
+      "Sunita Rao"
+    ],
+    "date": "2024-06-12T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nRavi Sharma had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-032",
+    "from": "Michael Brown",
+    "to": [
+      "John Smith",
+      "Alex Johnson",
+      "Pooja Verma"
+    ],
+    "date": "2024-10-11T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nMichael Brown",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-033",
+    "from": "Ravi Sharma",
+    "to": [
+      "Priya Patel",
+      "Anjali Mehta",
+      "John Smith"
+    ],
+    "date": "2024-05-08T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nRavi Sharma",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-034",
+    "from": "Alex Johnson",
+    "to": [
+      "Michael Brown",
+      "Priya Patel",
+      "Sunita Rao"
+    ],
+    "date": "2024-01-25T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Michael Brown\n- Security review: Priya Patel\n- Timeline owner: Sunita Rao\n\nAny objections should be raised by EOD Friday.\n\nAlex Johnson",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-035",
+    "from": "Michael Brown",
+    "to": [
+      "Priya Patel",
+      "Neha Gupta",
+      "David Chen"
+    ],
+    "date": "2024-09-17T00:00:00",
+    "subject": "Rejected Proposal: Kubernetes Migration",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nPriya Patel had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nMichael Brown",
+    "project": "DataPlatform",
+    "tags": [
+      "rejection"
+    ]
+  },
+  {
+    "id": "EMAIL-036",
+    "from": "Anjali Mehta",
+    "to": [
+      "John Smith",
+      "Sunita Rao",
+      "Michael Brown"
+    ],
+    "date": "2024-06-23T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nAnjali Mehta",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-037",
+    "from": "Ravi Sharma",
+    "to": [
+      "Anjali Mehta",
+      "David Chen",
+      "John Smith"
+    ],
+    "date": "2024-03-25T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Anjali Mehta\n- Security review: David Chen\n- Timeline owner: John Smith\n\nAny objections should be raised by EOD Friday.\n\nRavi Sharma",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-038",
+    "from": "Neha Gupta",
+    "to": [
+      "John Smith",
+      "Anjali Mehta",
+      "Sunita Rao"
+    ],
+    "date": "2024-05-15T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nJohn Smith had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nNeha Gupta",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-039",
+    "from": "Priya Patel",
+    "to": [
+      "Anjali Mehta",
+      "Michael Brown",
+      "Ravi Sharma"
+    ],
+    "date": "2024-03-28T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPriya Patel",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-040",
+    "from": "Priya Patel",
+    "to": [
+      "Ravi Sharma",
+      "Michael Brown",
+      "Alex Johnson"
+    ],
+    "date": "2024-07-05T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPriya Patel",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-041",
+    "from": "Alex Johnson",
+    "to": [
+      "John Smith",
+      "Pooja Verma",
+      "Ravi Sharma"
+    ],
+    "date": "2024-10-02T00:00:00",
+    "subject": "Rejected Proposal: Kubernetes Migration",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nAlex Johnson",
+    "project": "DataPlatform",
+    "tags": [
+      "rejection"
+    ]
+  },
+  {
+    "id": "EMAIL-042",
+    "from": "Alex Johnson",
+    "to": [
+      "Anjali Mehta",
+      "John Smith",
+      "Ravi Sharma"
+    ],
+    "date": "2024-10-02T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nAlex Johnson",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-043",
+    "from": "Pooja Verma",
+    "to": [
+      "John Smith",
+      "Ravi Sharma",
+      "Anjali Mehta"
+    ],
+    "date": "2024-10-30T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-044",
+    "from": "David Chen",
+    "to": [
+      "Pooja Verma",
+      "Priya Patel",
+      "Ravi Sharma"
+    ],
+    "date": "2024-09-17T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nPooja Verma had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nDavid Chen",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-045",
+    "from": "Anjali Mehta",
+    "to": [
+      "Pooja Verma",
+      "Michael Brown",
+      "David Chen"
+    ],
+    "date": "2024-06-06T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nAnjali Mehta",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-046",
+    "from": "Alex Johnson",
+    "to": [
+      "John Smith",
+      "Sunita Rao",
+      "David Chen"
+    ],
+    "date": "2024-01-27T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nAlex Johnson",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-047",
+    "from": "Sunita Rao",
+    "to": [
+      "Neha Gupta",
+      "David Chen",
+      "Priya Patel"
+    ],
+    "date": "2024-09-06T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Neha Gupta\n- Security review: David Chen\n- Timeline owner: Priya Patel\n\nAny objections should be raised by EOD Friday.\n\nSunita Rao",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-048",
+    "from": "Michael Brown",
+    "to": [
+      "Neha Gupta",
+      "Pooja Verma",
+      "David Chen"
+    ],
+    "date": "2024-08-06T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Neha Gupta\n- Security review: Pooja Verma\n- Timeline owner: David Chen\n\nAny objections should be raised by EOD Friday.\n\nMichael Brown",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-049",
+    "from": "Anjali Mehta",
+    "to": [
+      "Priya Patel",
+      "Michael Brown",
+      "Neha Gupta"
+    ],
+    "date": "2024-06-25T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nAnjali Mehta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-050",
+    "from": "Ravi Sharma",
+    "to": [
+      "John Smith",
+      "Alex Johnson",
+      "Sunita Rao"
+    ],
+    "date": "2024-10-13T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: John Smith\n- Security review: Alex Johnson\n- Timeline owner: Sunita Rao\n\nAny objections should be raised by EOD Friday.\n\nRavi Sharma",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-051",
+    "from": "Neha Gupta",
+    "to": [
+      "Michael Brown",
+      "David Chen",
+      "Alex Johnson"
+    ],
+    "date": "2024-01-02T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nNeha Gupta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-052",
+    "from": "Ravi Sharma",
+    "to": [
+      "Pooja Verma",
+      "John Smith",
+      "Michael Brown"
+    ],
+    "date": "2024-10-07T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nRavi Sharma",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-053",
+    "from": "Ravi Sharma",
+    "to": [
+      "John Smith",
+      "David Chen",
+      "Michael Brown"
+    ],
+    "date": "2024-07-14T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: John Smith\n- Security review: David Chen\n- Timeline owner: Michael Brown\n\nAny objections should be raised by EOD Friday.\n\nRavi Sharma",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-054",
+    "from": "Priya Patel",
+    "to": [
+      "Pooja Verma",
+      "John Smith",
+      "Michael Brown"
+    ],
+    "date": "2024-02-05T00:00:00",
+    "subject": "Rejected Proposal: Kubernetes Migration",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nPooja Verma had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nPriya Patel",
+    "project": "DataPlatform",
+    "tags": [
+      "rejection"
+    ]
+  },
+  {
+    "id": "EMAIL-055",
+    "from": "Neha Gupta",
+    "to": [
+      "Ravi Sharma",
+      "David Chen",
+      "Pooja Verma"
+    ],
+    "date": "2024-05-26T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Ravi Sharma\n- Security review: David Chen\n- Timeline owner: Pooja Verma\n\nAny objections should be raised by EOD Friday.\n\nNeha Gupta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-056",
+    "from": "Pooja Verma",
+    "to": [
+      "Ravi Sharma",
+      "Michael Brown",
+      "Priya Patel"
+    ],
+    "date": "2024-12-22T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-057",
+    "from": "Sunita Rao",
+    "to": [
+      "Michael Brown",
+      "John Smith",
+      "Ravi Sharma"
+    ],
+    "date": "2024-07-12T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nSunita Rao",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-058",
+    "from": "Pooja Verma",
+    "to": [
+      "Alex Johnson",
+      "Priya Patel",
+      "Sunita Rao"
+    ],
+    "date": "2024-11-24T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-059",
+    "from": "Michael Brown",
+    "to": [
+      "Anjali Mehta",
+      "Sunita Rao",
+      "Ravi Sharma"
+    ],
+    "date": "2024-08-05T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nMichael Brown",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-060",
+    "from": "John Smith",
+    "to": [
+      "Sunita Rao",
+      "David Chen",
+      "Michael Brown"
+    ],
+    "date": "2024-12-04T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-061",
+    "from": "Anjali Mehta",
+    "to": [
+      "Ravi Sharma",
+      "Alex Johnson",
+      "Michael Brown"
+    ],
+    "date": "2024-02-28T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nAnjali Mehta",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-062",
+    "from": "Neha Gupta",
+    "to": [
+      "Pooja Verma",
+      "Michael Brown",
+      "John Smith"
+    ],
+    "date": "2024-06-11T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nNeha Gupta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-063",
+    "from": "Sunita Rao",
+    "to": [
+      "Priya Patel",
+      "Pooja Verma",
+      "Michael Brown"
+    ],
+    "date": "2024-07-03T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nSunita Rao",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-064",
+    "from": "Neha Gupta",
+    "to": [
+      "Alex Johnson",
+      "Anjali Mehta",
+      "Sunita Rao"
+    ],
+    "date": "2024-01-06T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nNeha Gupta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-065",
+    "from": "Anjali Mehta",
+    "to": [
+      "Alex Johnson",
+      "John Smith",
+      "Priya Patel"
+    ],
+    "date": "2024-05-17T00:00:00",
+    "subject": "Rejected Proposal: Kubernetes Migration",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nAnjali Mehta",
+    "project": "DataPlatform",
+    "tags": [
+      "rejection"
+    ]
+  },
+  {
+    "id": "EMAIL-066",
+    "from": "Sunita Rao",
+    "to": [
+      "Michael Brown",
+      "Pooja Verma",
+      "Ravi Sharma"
+    ],
+    "date": "2024-04-21T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nMichael Brown had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nSunita Rao",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-067",
+    "from": "Priya Patel",
+    "to": [
+      "Michael Brown",
+      "Neha Gupta",
+      "Sunita Rao"
+    ],
+    "date": "2024-03-25T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nPriya Patel",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-068",
+    "from": "Anjali Mehta",
+    "to": [
+      "John Smith",
+      "Neha Gupta",
+      "Ravi Sharma"
+    ],
+    "date": "2024-08-03T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nAnjali Mehta",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-069",
+    "from": "Anjali Mehta",
+    "to": [
+      "John Smith",
+      "Priya Patel",
+      "Michael Brown"
+    ],
+    "date": "2024-08-25T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nAnjali Mehta",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-070",
+    "from": "David Chen",
+    "to": [
+      "Alex Johnson",
+      "John Smith",
+      "Pooja Verma"
+    ],
+    "date": "2024-10-20T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nDavid Chen",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-071",
+    "from": "Ravi Sharma",
+    "to": [
+      "Sunita Rao",
+      "Pooja Verma",
+      "Anjali Mehta"
+    ],
+    "date": "2024-03-26T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Sunita Rao\n- Security review: Pooja Verma\n- Timeline owner: Anjali Mehta\n\nAny objections should be raised by EOD Friday.\n\nRavi Sharma",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-072",
+    "from": "Priya Patel",
+    "to": [
+      "Michael Brown",
+      "David Chen",
+      "John Smith"
+    ],
+    "date": "2024-03-18T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Michael Brown\n- Security review: David Chen\n- Timeline owner: John Smith\n\nAny objections should be raised by EOD Friday.\n\nPriya Patel",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-073",
+    "from": "Pooja Verma",
+    "to": [
+      "John Smith",
+      "Sunita Rao",
+      "Michael Brown"
+    ],
+    "date": "2024-11-16T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-074",
+    "from": "Priya Patel",
+    "to": [
+      "Neha Gupta",
+      "Michael Brown",
+      "David Chen"
+    ],
+    "date": "2024-04-24T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPriya Patel",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-075",
+    "from": "Pooja Verma",
+    "to": [
+      "Michael Brown",
+      "David Chen",
+      "Neha Gupta"
+    ],
+    "date": "2024-08-07T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-076",
+    "from": "Priya Patel",
+    "to": [
+      "Sunita Rao",
+      "Alex Johnson",
+      "Anjali Mehta"
+    ],
+    "date": "2024-03-25T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Sunita Rao\n- Security review: Alex Johnson\n- Timeline owner: Anjali Mehta\n\nAny objections should be raised by EOD Friday.\n\nPriya Patel",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-077",
+    "from": "Pooja Verma",
+    "to": [
+      "Sunita Rao",
+      "Michael Brown",
+      "David Chen"
+    ],
+    "date": "2024-06-03T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-078",
+    "from": "Anjali Mehta",
+    "to": [
+      "David Chen",
+      "Priya Patel",
+      "Ravi Sharma"
+    ],
+    "date": "2024-04-21T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nDavid Chen had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nAnjali Mehta",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-079",
+    "from": "Neha Gupta",
+    "to": [
+      "John Smith",
+      "Priya Patel",
+      "Ravi Sharma"
+    ],
+    "date": "2024-11-04T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nNeha Gupta",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-080",
+    "from": "Michael Brown",
+    "to": [
+      "Anjali Mehta",
+      "John Smith",
+      "Priya Patel"
+    ],
+    "date": "2024-03-24T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Anjali Mehta\n- Security review: John Smith\n- Timeline owner: Priya Patel\n\nAny objections should be raised by EOD Friday.\n\nMichael Brown",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-081",
+    "from": "Anjali Mehta",
+    "to": [
+      "Alex Johnson",
+      "Michael Brown",
+      "Ravi Sharma"
+    ],
+    "date": "2024-07-31T00:00:00",
+    "subject": "Follow-up: Auth Service Refactor",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nAnjali Mehta",
+    "project": "AuthRefactor",
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "id": "EMAIL-082",
+    "from": "Pooja Verma",
+    "to": [
+      "Neha Gupta",
+      "Anjali Mehta",
+      "John Smith"
+    ],
+    "date": "2024-06-09T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Neha Gupta\n- Security review: Anjali Mehta\n- Timeline owner: John Smith\n\nAny objections should be raised by EOD Friday.\n\nPooja Verma",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-083",
+    "from": "Michael Brown",
+    "to": [
+      "Anjali Mehta",
+      "Pooja Verma",
+      "John Smith"
+    ],
+    "date": "2024-07-03T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nMichael Brown",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-084",
+    "from": "John Smith",
+    "to": [
+      "Priya Patel",
+      "Ravi Sharma",
+      "David Chen"
+    ],
+    "date": "2024-06-15T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Priya Patel\n- Security review: Ravi Sharma\n- Timeline owner: David Chen\n\nAny objections should be raised by EOD Friday.\n\nJohn Smith",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-085",
+    "from": "Pooja Verma",
+    "to": [
+      "Neha Gupta",
+      "Ravi Sharma",
+      "Michael Brown"
+    ],
+    "date": "2024-02-09T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Neha Gupta\n- Security review: Ravi Sharma\n- Timeline owner: Michael Brown\n\nAny objections should be raised by EOD Friday.\n\nPooja Verma",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-086",
+    "from": "Anjali Mehta",
+    "to": [
+      "Priya Patel",
+      "Pooja Verma",
+      "Michael Brown"
+    ],
+    "date": "2024-04-10T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nAnjali Mehta",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-087",
+    "from": "Michael Brown",
+    "to": [
+      "Alex Johnson",
+      "Sunita Rao",
+      "David Chen"
+    ],
+    "date": "2024-08-27T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nAlex Johnson had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nMichael Brown",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-088",
+    "from": "Anjali Mehta",
+    "to": [
+      "David Chen",
+      "Priya Patel",
+      "Neha Gupta"
+    ],
+    "date": "2024-01-05T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: David Chen\n- Security review: Priya Patel\n- Timeline owner: Neha Gupta\n\nAny objections should be raised by EOD Friday.\n\nAnjali Mehta",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-089",
+    "from": "Sunita Rao",
+    "to": [
+      "Michael Brown",
+      "Priya Patel",
+      "Neha Gupta"
+    ],
+    "date": "2024-09-01T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nSunita Rao",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-090",
+    "from": "Anjali Mehta",
+    "to": [
+      "Ravi Sharma",
+      "Neha Gupta",
+      "Priya Patel"
+    ],
+    "date": "2024-03-15T00:00:00",
+    "subject": "API Timeout Issues \u2014 Urgent",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Ravi Sharma\n- Security review: Neha Gupta\n- Timeline owner: Priya Patel\n\nAny objections should be raised by EOD Friday.\n\nAnjali Mehta",
+    "project": "AuthRefactor",
+    "tags": [
+      "issue"
+    ]
+  },
+  {
+    "id": "EMAIL-091",
+    "from": "Sunita Rao",
+    "to": [
+      "Anjali Mehta",
+      "Ravi Sharma",
+      "Priya Patel"
+    ],
+    "date": "2024-09-02T00:00:00",
+    "subject": "Re: AWS vs Azure \u2014 Final Decision",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nSunita Rao",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-092",
+    "from": "Neha Gupta",
+    "to": [
+      "Alex Johnson",
+      "Sunita Rao",
+      "Ravi Sharma"
+    ],
+    "date": "2024-03-30T00:00:00",
+    "subject": "Cloud Migration Discussion",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Alex Johnson\n- Security review: Sunita Rao\n- Timeline owner: Ravi Sharma\n\nAny objections should be raised by EOD Friday.\n\nNeha Gupta",
+    "project": "CloudMigration",
+    "tags": [
+      "migration"
+    ]
+  },
+  {
+    "id": "EMAIL-093",
+    "from": "Sunita Rao",
+    "to": [
+      "Anjali Mehta",
+      "Neha Gupta",
+      "Michael Brown"
+    ],
+    "date": "2024-10-12T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nSunita Rao",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  },
+  {
+    "id": "EMAIL-094",
+    "from": "John Smith",
+    "to": [
+      "Pooja Verma",
+      "Sunita Rao",
+      "Priya Patel"
+    ],
+    "date": "2024-01-30T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "Hi team,\n\nAfter evaluating both AWS Lambda and Azure Functions for our migration, I want to share my concerns.\n\nAzure Functions has better pricing for our workload, but Ravi raised a valid point about vendor lock-in. \nWe should not ignore the security implications of moving our authentication layer to a new cloud provider \nwithout a proper audit.\n\nMy recommendation: proceed with Azure, but only after a security review.\n\nBest,\nJohn Smith",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-095",
+    "from": "Sunita Rao",
+    "to": [
+      "Priya Patel",
+      "John Smith",
+      "Alex Johnson"
+    ],
+    "date": "2024-09-20T00:00:00",
+    "subject": "Q3 Budget Review \u2014 Cloud Costs",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Priya Patel\n- Security review: John Smith\n- Timeline owner: Alex Johnson\n\nAny objections should be raised by EOD Friday.\n\nSunita Rao",
+    "project": "CloudMigration",
+    "tags": [
+      "budget"
+    ]
+  },
+  {
+    "id": "EMAIL-096",
+    "from": "Anjali Mehta",
+    "to": [
+      "Ravi Sharma",
+      "Michael Brown",
+      "Pooja Verma"
+    ],
+    "date": "2024-07-15T00:00:00",
+    "subject": "Database Migration Concerns",
+    "body": "All,\n\nDecision confirmed from yesterday's steering committee:\n\nWe are proceeding with Azure Functions for the cloud migration. \nImplementation starts March 20.\n\nKey contacts:\n- Architecture: Ravi Sharma\n- Security review: Michael Brown\n- Timeline owner: Pooja Verma\n\nAny objections should be raised by EOD Friday.\n\nAnjali Mehta",
+    "project": "DataPlatform",
+    "tags": [
+      "database"
+    ]
+  },
+  {
+    "id": "EMAIL-097",
+    "from": "David Chen",
+    "to": [
+      "Michael Brown",
+      "Anjali Mehta",
+      "Neha Gupta"
+    ],
+    "date": "2024-08-23T00:00:00",
+    "subject": "Vendor X Evaluation Results",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nDavid Chen",
+    "project": "DataPlatform",
+    "tags": [
+      "vendor"
+    ]
+  },
+  {
+    "id": "EMAIL-098",
+    "from": "John Smith",
+    "to": [
+      "Michael Brown",
+      "Alex Johnson",
+      "Priya Patel"
+    ],
+    "date": "2024-01-07T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "Team,\n\nJust circling back on the Vendor X evaluation from last week's meeting.\n\nThe vendor was rejected primarily due to:\n1. Pricing was 40% above our budget\n2. SLA terms were unacceptable (99.5% uptime vs our requirement of 99.9%)\n3. No GDPR compliance certification\n\nMichael Brown had concerns about the evaluation process, but leadership agreed with the rejection.\n\nRegards,\nJohn Smith",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-099",
+    "from": "David Chen",
+    "to": [
+      "Pooja Verma",
+      "Neha Gupta",
+      "Ravi Sharma"
+    ],
+    "date": "2024-11-01T00:00:00",
+    "subject": "Security Risk in Proposed Architecture",
+    "body": "Team,\n\nI disagree with the current approach to the auth refactor.\n\nUsing JWT tokens without refresh token rotation is a security vulnerability. \nI've sent the OWASP reference 3 times now and it keeps getting deprioritized.\n\nI'm formally documenting my objection here.\n\nDavid Chen",
+    "project": "CloudMigration",
+    "tags": [
+      "risk"
+    ]
+  },
+  {
+    "id": "EMAIL-100",
+    "from": "Ravi Sharma",
+    "to": [
+      "Alex Johnson",
+      "Neha Gupta",
+      "John Smith"
+    ],
+    "date": "2024-07-09T00:00:00",
+    "subject": "Mobile App Backend Decision",
+    "body": "Hi,\n\nI want to flag a serious risk that came up during our architecture review.\n\nThe proposed database migration from PostgreSQL to MongoDB will break our existing reporting queries. \nI've already raised this in PROJ-045 but nobody has responded in 2 weeks.\n\nIf we proceed without addressing this, we will face data integrity issues in production.\n\nRavi Sharma",
+    "project": "MobileApp",
+    "tags": [
+      "backend"
+    ]
+  }
+]

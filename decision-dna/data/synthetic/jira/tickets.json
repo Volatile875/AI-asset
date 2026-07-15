@@ -1,0 +1,107 @@
+[
+  {
+    "id": "PROJ-001",
+    "title": "API Timeout on High Load — Azure Functions",
+    "description": "After migrating to Azure Functions, we are seeing 30% of requests timing out above 500 concurrent users. This was flagged as a risk in MTG-001 but migration proceeded anyway.",
+    "status": "Open",
+    "priority": "Critical",
+    "reporter": "Alex Johnson",
+    "assignee": "Ravi Sharma",
+    "created": "2024-02-20T09:00:00",
+    "labels": ["migration", "performance", "azure"],
+    "project": "CloudMigration",
+    "comments": [
+      {
+        "author": "Ravi Sharma",
+        "date": "2024-02-20T10:30:00",
+        "body": "Confirmed this is still an issue as of today."
+      },
+      {
+        "author": "Alex Johnson",
+        "date": "2024-02-21T14:00:00",
+        "body": "Root cause identified: insufficient load testing before migration."
+      }
+    ]
+  },
+  {
+    "id": "PROJ-002",
+    "title": "PostgreSQL to MongoDB migration breaks reporting",
+    "description": "The data migration has broken 14 existing SQL reporting queries. This was flagged by Ravi in EMAIL-003 but the risk was not addressed before go-live.",
+    "status": "In Progress",
+    "priority": "High",
+    "reporter": "Michael Brown",
+    "assignee": "Neha Gupta",
+    "created": "2024-02-15T11:00:00",
+    "labels": ["database", "migration", "reporting"],
+    "project": "DataPlatform",
+    "comments": [
+      {
+        "author": "Neha Gupta",
+        "date": "2024-02-16T09:00:00",
+        "body": "Working on a fix, ETA 2 days."
+      }
+    ]
+  },
+  {
+    "id": "PROJ-003",
+    "title": "JWT refresh token vulnerability — Auth Service",
+    "description": "As formally objected to in MTG-003, the lack of refresh token rotation is a security vulnerability. A penetration test confirmed the issue. Escalating to CTO.",
+    "status": "Open",
+    "priority": "Critical",
+    "reporter": "Michael Brown",
+    "assignee": "Sunita Rao",
+    "created": "2024-02-12T16:00:00",
+    "labels": ["security", "auth", "vulnerability"],
+    "project": "AuthRefactor",
+    "comments": [
+      {
+        "author": "Michael Brown",
+        "date": "2024-02-12T17:00:00",
+        "body": "This was raised before we migrated. See EMAIL-003."
+      },
+      {
+        "author": "Sunita Rao",
+        "date": "2024-02-13T08:30:00",
+        "body": "Escalated to VP Engineering."
+      }
+    ]
+  },
+  {
+    "id": "PROJ-004",
+    "title": "Vendor evaluation framework needs update",
+    "description": "The Vendor X rejection highlighted gaps in our evaluation criteria. Need to add GDPR compliance and SLA requirements as mandatory fields.",
+    "status": "Closed",
+    "priority": "Medium",
+    "reporter": "Priya Patel",
+    "assignee": "Pooja Verma",
+    "created": "2024-01-30T10:00:00",
+    "labels": ["vendor", "process"],
+    "project": "DataPlatform",
+    "comments": [
+      {
+        "author": "Pooja Verma",
+        "date": "2024-02-01T14:00:00",
+        "body": "Framework updated with new mandatory fields."
+      }
+    ]
+  },
+  {
+    "id": "PROJ-005",
+    "title": "Azure vendor lock-in risk documentation",
+    "description": "Per Ravi's concern raised in MTG-001, documenting the vendor lock-in risks of Azure Functions migration for future reference.",
+    "status": "Closed",
+    "priority": "Low",
+    "reporter": "Ravi Sharma",
+    "assignee": "Alex Johnson",
+    "created": "2024-01-21T09:00:00",
+    "labels": ["migration", "risk", "documentation"],
+    "project": "CloudMigration",
+    "comments": [
+      {
+        "author": "Alex Johnson",
+        "date": "2024-01-22T11:00:00",
+        "body": "Risk documented in architecture decision records."
+      }
+    ]
+  }
+]

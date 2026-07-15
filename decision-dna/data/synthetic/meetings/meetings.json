@@ -1,0 +1,60 @@
+[
+  {
+    "id": "MTG-001",
+    "title": "Cloud Migration Planning — Sprint 1",
+    "project": "CloudMigration",
+    "date": "2024-01-20T10:00:00",
+    "attendees": ["Ravi Sharma", "Priya Patel", "Alex Johnson", "Neha Gupta"],
+    "agenda": "Discuss migration from AWS Lambda to Azure Functions. Evaluate timeline and risks.",
+    "discussion": "The team debated the merits of both platforms. Ravi raised concerns about vendor lock-in with Azure. Priya presented cost analysis showing 30% savings with Azure. The security team flagged that OAuth integration needs review before migration.",
+    "decisions": [
+      "Proceed with Azure Functions as target platform",
+      "Security audit to be completed by Feb 15",
+      "Ravi's vendor lock-in concern formally noted but overruled by budget considerations"
+    ],
+    "action_items": [
+      "Alex to complete security audit by Feb 15",
+      "Neha to create migration runbook",
+      "John to schedule stakeholder review"
+    ],
+    "tags": ["migration", "cloud", "azure"]
+  },
+  {
+    "id": "MTG-002",
+    "title": "Vendor X Evaluation Meeting",
+    "project": "DataPlatform",
+    "date": "2024-01-25T14:00:00",
+    "attendees": ["Priya Patel", "Anjali Mehta", "David Chen", "Pooja Verma"],
+    "agenda": "Evaluate Vendor X for data pipeline tooling.",
+    "discussion": "The team reviewed Vendor X's proposal. Key concerns were pricing (40% over budget), SLA terms (99.5% vs required 99.9%), and missing GDPR certification. Anjali argued for giving Vendor X another chance to revise their proposal, but was outvoted.",
+    "decisions": [
+      "Vendor X rejected",
+      "Open tender to be issued for alternative vendors",
+      "Decision logged in PROJ-089"
+    ],
+    "action_items": [
+      "Pooja to draft new vendor requirements doc",
+      "David to identify 3 alternative vendors"
+    ],
+    "tags": ["vendor", "data-platform"]
+  },
+  {
+    "id": "MTG-003",
+    "title": "Auth Refactor Architecture Review",
+    "project": "AuthRefactor",
+    "date": "2024-02-10T11:00:00",
+    "attendees": ["Michael Brown", "Sunita Rao", "John Smith", "Pooja Verma"],
+    "agenda": "Review proposed JWT implementation for auth service.",
+    "discussion": "Michael raised a serious security concern: the proposed implementation does not include refresh token rotation, which violates OWASP guidelines. The engineering lead acknowledged but said the deadline was more important. Michael formally objected.",
+    "decisions": [
+      "Proceed with current JWT implementation for MVP",
+      "Refresh token rotation to be added in v1.1",
+      "Michael's security objection formally recorded"
+    ],
+    "action_items": [
+      "Michael to document security risk in JIRA",
+      "Sunita to update implementation timeline"
+    ],
+    "tags": ["auth", "security", "jwt"]
+  }
+]

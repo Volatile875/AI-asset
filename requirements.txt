@@ -1,0 +1,88 @@
+# =============================================================================
+# DecisionDNA — Master requirements.txt
+# Covers ALL microservices + frontend + scripts
+#
+# Install everything:
+#   pip install -r requirements.txt
+#
+# Or install per service (recommended for Docker):
+#   pip install -r api-gateway/requirements.txt
+#   pip install -r services/query-service/requirements.txt
+#   ... etc.
+# =============================================================================
+
+
+# ── Web Framework (all services) ──────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+
+# ── HTTP Client (all services) ────────────────────────────────
+httpx==0.27.0
+
+
+# ── Data Validation (all services) ───────────────────────────
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+
+# ── Environment Config (all services) ────────────────────────
+python-dotenv==1.0.1
+
+
+# ── Cache — Redis (api-gateway, ingestion-service) ────────────
+redis==5.0.4
+
+
+# ── LLM — Anthropic Claude (query-service, timeline-service) ──
+anthropic==0.28.0
+
+
+# ── LLM — OpenAI Embeddings (embedding, query, timeline) ──────
+openai==1.30.1
+tiktoken==0.7.0
+
+
+# ── LangChain Core (embedding-service, query-service) ─────────
+langchain==0.2.1
+langchain-openai==0.1.8
+langchain-community==0.2.1
+
+
+# ── LangGraph — Agent Pipeline (query-service) ────────────────
+langgraph==0.1.5
+
+
+# ── Vector Database — Pinecone (embedding, query, timeline) ───
+pinecone-client==3.2.2
+
+
+# ── Graph Database — Neo4j (graph-service) ────────────────────
+neo4j==5.20.0
+
+
+# ── Frontend — Streamlit (frontend) ───────────────────────────
+streamlit==1.35.0
+
+
+# ── Scripts (generate_data.py, ingest_all.py) ─────────────────
+faker==24.11.0
+
+
+# =============================================================================
+# Per-Service Breakdown (reference)
+# =============================================================================
+#
+# api-gateway          → fastapi, uvicorn, httpx, redis, pydantic, pydantic-settings, python-dotenv
+# ingestion-service    → fastapi, uvicorn, httpx, redis, pydantic, pydantic-settings, python-dotenv
+# embedding-service    → fastapi, uvicorn, httpx, pydantic, pydantic-settings, python-dotenv,
+#                        langchain, langchain-openai, langchain-community, pinecone-client, openai, tiktoken
+# graph-service        → fastapi, uvicorn, httpx, pydantic, pydantic-settings, python-dotenv, neo4j
+# query-service        → fastapi, uvicorn, httpx, pydantic, pydantic-settings, python-dotenv,
+#                        anthropic, langchain, langchain-openai, langgraph, pinecone-client, openai, tiktoken
+# timeline-service     → fastapi, uvicorn, httpx, pydantic, pydantic-settings, python-dotenv,
+#                        anthropic, langchain-openai, pinecone-client, openai
+# frontend             → streamlit, httpx, python-dotenv
+# scripts              → faker, httpx
+#
+# =============================================================================
