@@ -30,43 +30,59 @@ embeddings_model = None
 text_splitter = None
 
 
+def init_clients() -> bool:
+    """Lazily (re)initialize external clients. Idempotent and never raises, so a
+    transient Pinecone/OpenAI failure can't crash startup or leave the service
+    permanently unreachable — it retries on the next call and self-heals.
+    Returns True once all clients are ready."""
+    global pc, index, embeddings_model, text_splitter
+    try:
+        # Chunker + embedding model don't need the network to construct.
+        if text_splitter is None:
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=800,
+                chunk_overlap=100,
+                separators=["\n\n", "\n", ". ", " ", ""],
+            )
+        if embeddings_model is None:
+            embeddings_model = OpenAIEmbeddings(
+                model=EMBEDDING_MODEL,
+                dimensions=EMBEDDING_DIM,
+                openai_api_key=OPENAI_API_KEY,
+            )
+        # Pinecone: create the index if missing; warn (don't crash) on dim mismatch.
+        if index is None:
+            pc = Pinecone(api_key=PINECONE_API_KEY)
+            existing = [i.name for i in pc.list_indexes()]
+            if INDEX_NAME not in existing:
+                pc.create_index(
+                    name=INDEX_NAME,
+                    dimension=EMBEDDING_DIM,
+                    metric="cosine",
+                    spec=ServerlessSpec(cloud="aws", region=PINECONE_ENV),
+                )
+            else:
+                index_description = pc.describe_index(INDEX_NAME)
+                actual_dimension = getattr(index_description, "dimension", None)
+                if actual_dimension and actual_dimension != EMBEDDING_DIM:
+                    print(
+                        f"[embedding-service] WARNING: index '{INDEX_NAME}' has dimension "
+                        f"{actual_dimension} but EMBEDDING_DIMENSIONS is {EMBEDDING_DIM}; "
+                        f"upserts will fail until this is reconciled.",
+                        flush=True,
+                    )
+            index = pc.Index(INDEX_NAME)
+        return True
+    except Exception as e:
+        print(f"[embedding-service] client init failed (will retry on demand): {e}", flush=True)
+        return False
+
+
 @app.on_event("startup")
 async def startup():
-    global pc, index, embeddings_model, text_splitter
-
-    # Init Pinecone
-    pc = Pinecone(api_key=PINECONE_API_KEY)
-    existing = [i.name for i in pc.list_indexes()]
-    if INDEX_NAME not in existing:
-        pc.create_index(
-            name=INDEX_NAME,
-            dimension=EMBEDDING_DIM,
-            metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region=PINECONE_ENV),
-        )
-    else:
-        index_description = pc.describe_index(INDEX_NAME)
-        actual_dimension = getattr(index_description, "dimension", None)
-        if actual_dimension and actual_dimension != EMBEDDING_DIM:
-            raise RuntimeError(
-                f"Pinecone index '{INDEX_NAME}' has dimension {actual_dimension}, "
-                f"but EMBEDDING_DIMENSIONS is {EMBEDDING_DIM}."
-            )
-    index = pc.Index(INDEX_NAME)
-
-    # Init embedding model
-    embeddings_model = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        dimensions=EMBEDDING_DIM,
-        openai_api_key=OPENAI_API_KEY,
-    )
-
-    # Init chunker
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=100,
-        separators=["\n\n", "\n", ". ", " ", ""],
-    )
+    # Non-fatal: never abort startup on a dependency hiccup. The service must stay
+    # up and reachable so it can self-heal; clients are (re)initialized on demand.
+    init_clients()
 
 
 # ── Models ─────────────────────────────────────────────────────
@@ -142,6 +158,7 @@ async def health():
     return {
         "service": "embedding-service",
         "status": "healthy",
+        "ready": index is not None,  # False until Pinecone/OpenAI init succeeds
         "pinecone_index": INDEX_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
@@ -150,6 +167,8 @@ async def health():
 
 @app.post("/embed-batch", response_model=EmbedBatchResponse)
 async def embed_batch(request: EmbedBatchRequest):
+    if not init_clients():
+        raise HTTPException(status_code=503, detail="Upstream (Pinecone/OpenAI) not ready - check API keys and that the index exists")
     if not request.documents:
         raise HTTPException(status_code=400, detail="No documents provided")
 
@@ -169,6 +188,8 @@ async def embed_batch(request: EmbedBatchRequest):
 
 @app.post("/embed-single")
 async def embed_single(doc: Dict[str, Any]):
+    if not init_clients():
+        raise HTTPException(status_code=503, detail="Upstream (Pinecone/OpenAI) not ready - check API keys and that the index exists")
     chunks = chunk_document(doc)
     await embed_and_upsert(chunks)
     return {"chunk_count": len(chunks), "status": "success"}
@@ -176,5 +197,7 @@ async def embed_single(doc: Dict[str, Any]):
 
 @app.get("/index-stats")
 async def index_stats():
+    if not init_clients():
+        raise HTTPException(status_code=503, detail="Upstream (Pinecone/OpenAI) not ready - check API keys and that the index exists")
     stats = index.describe_index_stats()
     return {"total_vectors": stats.total_vector_count, "index": INDEX_NAME}

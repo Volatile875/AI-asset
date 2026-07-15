@@ -34,17 +34,35 @@ embeddings_model = None
 pc_index = None
 
 
+def init_clients() -> bool:
+    """Lazily (re)initialize external clients. Idempotent and never raises, so a
+    transient Pinecone/OpenAI failure can't crash startup or leave the service
+    permanently unreachable — it retries on the next call and self-heals.
+    Returns True once all clients are ready."""
+    global claude_client, embeddings_model, pc_index
+    try:
+        if claude_client is None:
+            claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if embeddings_model is None:
+            embeddings_model = OpenAIEmbeddings(
+                model=EMBEDDING_MODEL,
+                dimensions=EMBEDDING_DIM,
+                openai_api_key=OPENAI_API_KEY,
+            )
+        if pc_index is None:
+            pc = Pinecone(api_key=PINECONE_API_KEY)
+            pc_index = pc.Index(INDEX_NAME)
+        return True
+    except Exception as e:
+        print(f"[query-service] client init failed (will retry on demand): {e}", flush=True)
+        return False
+
+
 @app.on_event("startup")
 async def startup():
-    global claude_client, embeddings_model, pc_index
-    claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    embeddings_model = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        dimensions=EMBEDDING_DIM,
-        openai_api_key=OPENAI_API_KEY,
-    )
-    pc = Pinecone(api_key=PINECONE_API_KEY)
-    pc_index = pc.Index(INDEX_NAME)
+    # Non-fatal: never abort startup on a dependency hiccup. The service must stay
+    # up and reachable so it can self-heal; clients are (re)initialized on demand.
+    init_clients()
 
 
 # ── LangGraph State ────────────────────────────────────────────
@@ -287,16 +305,18 @@ Be factual, cite document types when mentioning sources."""
 def build_graph():
     workflow = StateGraph(AgentState)
 
+    # NOTE: node ids must not collide with AgentState keys (newer LangGraph rejects
+    # that), so the timeline node is "timeline_step" while the state key stays "timeline".
     workflow.add_node("planner", planner_agent)
     workflow.add_node("search", search_agent)
-    workflow.add_node("timeline", timeline_agent)
+    workflow.add_node("timeline_step", timeline_agent)
     workflow.add_node("decision", decision_agent)
     workflow.add_node("answer", answer_agent)
 
     workflow.set_entry_point("planner")
     workflow.add_edge("planner", "search")
-    workflow.add_edge("search", "timeline")
-    workflow.add_edge("timeline", "decision")
+    workflow.add_edge("search", "timeline_step")
+    workflow.add_edge("timeline_step", "decision")
     workflow.add_edge("decision", "answer")
     workflow.add_edge("answer", END)
 
@@ -326,6 +346,7 @@ async def health():
     return {
         "service": "query-service",
         "status": "healthy",
+        "ready": pc_index is not None,  # False until Pinecone/OpenAI init succeeds
         "pinecone_index": INDEX_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
@@ -336,6 +357,8 @@ async def health():
 async def query(request: QueryRequest):
     if not agent_graph:
         raise HTTPException(status_code=503, detail="Agent not ready")
+    if not init_clients():
+        raise HTTPException(status_code=503, detail="Upstream (Pinecone/OpenAI) not ready - check API keys and that the index exists")
 
     initial_state: AgentState = {
         "question": request.question,
