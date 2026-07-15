@@ -9,3 +9,6 @@ __pycache__/
 
 # Corporate CA copied into build contexts (do not commit)
 corp-ca.crt
+
+# start.ps1 run logs
+logs/
