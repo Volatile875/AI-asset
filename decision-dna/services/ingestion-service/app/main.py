@@ -7,6 +7,7 @@ normalized RawDocument objects, then triggers embedding.
 import asyncio
 import json
 import os
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +22,33 @@ from app.parsers.email_parser import parse_emails
 from app.parsers.jira_parser import parse_jira_tickets
 from app.parsers.meeting_parser import parse_meeting_notes
 
+import logging
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [ingestion-service] %(message)s",
+)
+log = logging.getLogger("ingestion-service")
+
 app = FastAPI(title="Ingestion Service", version="1.0.0")
+
+
+@app.middleware("http")
+async def trace_requests(request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:8]
+    start = time.perf_counter()
+    log.info("→ %s %s (rid=%s)", request.method, request.url.path, rid)
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("✗ %s %s UNHANDLED after %.0fms (rid=%s)",
+                      request.method, request.url.path, (time.perf_counter() - start) * 1000, rid)
+        raise
+    log.info("← %s %s %s %.0fms (rid=%s)",
+             request.method, request.url.path, response.status_code,
+             (time.perf_counter() - start) * 1000, rid)
+    response.headers["x-request-id"] = rid
+    return response
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 EMBEDDING_URL = os.getenv("EMBEDDING_SERVICE_URL", "http://embedding-service:8002")
@@ -84,21 +111,29 @@ async def run_ingestion_job(job_id: str, data_dir: str, trigger_embedding: bool,
         for doc in documents:
             await redis_client.set(f"doc:{doc['doc_id']}", json.dumps(doc), ex=86400)
 
+        log.info("job %s: parsed %d documents", job_id, len(documents))
+
         # Trigger downstream services
         async with httpx.AsyncClient(timeout=120) as client:
             if trigger_embedding:
-                await client.post(f"{EMBEDDING_URL}/embed-batch", json={"documents": documents})
+                log.info("job %s: POST %s/embed-batch (%d docs)", job_id, EMBEDDING_URL, len(documents))
+                r = await client.post(f"{EMBEDDING_URL}/embed-batch", json={"documents": documents})
+                log.info("job %s: embed-batch → %s %s", job_id, r.status_code, r.text[:200])
 
             if trigger_graph:
-                await client.post(f"{GRAPH_URL}/build-graph", json={"documents": documents})
+                log.info("job %s: POST %s/build-graph (%d docs)", job_id, GRAPH_URL, len(documents))
+                r = await client.post(f"{GRAPH_URL}/build-graph", json={"documents": documents})
+                log.info("job %s: build-graph → %s %s", job_id, r.status_code, r.text[:200])
 
         await redis_client.hset(f"job:{job_id}", mapping={
             "status": "completed",
             "total_docs": str(len(documents)),
             "completed_at": datetime.utcnow().isoformat(),
         })
+        log.info("job %s: completed (%d docs)", job_id, len(documents))
 
     except Exception as e:
+        log.exception("job %s: FAILED", job_id)
         await redis_client.hset(f"job:{job_id}", mapping={"status": "failed", "error": str(e)})
 
 

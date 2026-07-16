@@ -14,7 +14,35 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone, ServerlessSpec
 
+import logging
+import time
+import uuid
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [embedding-service] %(message)s",
+)
+log = logging.getLogger("embedding-service")
+
 app = FastAPI(title="Embedding Service", version="1.0.0")
+
+
+@app.middleware("http")
+async def trace_requests(request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:8]
+    start = time.perf_counter()
+    log.info("→ %s %s (rid=%s)", request.method, request.url.path, rid)
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("✗ %s %s UNHANDLED after %.0fms (rid=%s)",
+                      request.method, request.url.path, (time.perf_counter() - start) * 1000, rid)
+        raise
+    log.info("← %s %s %s %.0fms (rid=%s)",
+             request.method, request.url.path, response.status_code,
+             (time.perf_counter() - start) * 1000, rid)
+    response.headers["x-request-id"] = rid
+    return response
 
 # ── Config ─────────────────────────────────────────────────────
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")

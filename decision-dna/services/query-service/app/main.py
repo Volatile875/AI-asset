@@ -6,12 +6,15 @@ LangGraph 5-agent pipeline:
 """
 
 import os
+import time
+import uuid
+import logging
 from urllib.parse import quote
 from typing import Any, Dict, List, Optional, TypedDict
 
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, HTTPException
 from langchain_openai import OpenAIEmbeddings
 from langgraph.graph import END, StateGraph
 from openai import OpenAI
@@ -19,7 +22,34 @@ from pinecone import Pinecone
 from pydantic import BaseModel
 from openai import OpenAIError
 
+# ── Logging ────────────────────────────────────────────────────
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [query-service] %(message)s",
+)
+log = logging.getLogger("query-service")
+
 app = FastAPI(title="Query Service", version="1.0.0")
+
+
+# ── Request tracing ────────────────────────────────────────────
+@app.middleware("http")
+async def trace_requests(request: Request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:8]
+    start = time.perf_counter()
+    log.info("→ %s %s (rid=%s)", request.method, request.url.path, rid)
+    try:
+        response = await call_next(request)
+    except Exception:
+        dur = (time.perf_counter() - start) * 1000
+        log.exception("✗ %s %s UNHANDLED after %.0fms (rid=%s)",
+                      request.method, request.url.path, dur, rid)
+        raise
+    dur = (time.perf_counter() - start) * 1000
+    log.info("← %s %s %s %.0fms (rid=%s)",
+             request.method, request.url.path, response.status_code, dur, rid)
+    response.headers["x-request-id"] = rid
+    return response
 
 # ── Config ─────────────────────────────────────────────────────
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
@@ -125,6 +155,7 @@ class AgentState(TypedDict):
 def planner_agent(state: AgentState) -> AgentState:
     """Breaks the user question into sub-tasks."""
     question = state["question"]
+    log.info("agent[planner] start: q=%r", question[:120])
 
     text = generate_text(
         f"""You are a query planner for an organizational memory system.
@@ -148,6 +179,7 @@ Output:""",
 
     state["sub_tasks"] = sub_tasks
     state["processing_steps"].append(f"Planner: Generated {len(sub_tasks)} sub-tasks")
+    log.info("agent[planner] done: %d sub-tasks", len(sub_tasks))
     return state
 
 
@@ -155,7 +187,9 @@ Output:""",
 
 def search_agent(state: AgentState) -> AgentState:
     """Searches Pinecone vector DB for relevant chunks."""
+    log.info("agent[search] start: %d sub-tasks", len(state.get("sub_tasks", [])))
     if not init_clients():
+        log.error("agent[search] clients not initialized (Pinecone/OpenAI)")
         raise RuntimeError("Search agent unavailable: Pinecone/OpenAI clients could not be initialized")
 
     embeddings_model_local = embeddings_model
@@ -197,6 +231,8 @@ def search_agent(state: AgentState) -> AgentState:
     all_chunks.sort(key=lambda x: x["score"], reverse=True)
     state["retrieved_chunks"] = all_chunks[:15]
     state["processing_steps"].append(f"Search: Retrieved {len(all_chunks)} chunks")
+    log.info("agent[search] done: retrieved %d unique chunks (keeping top %d)",
+             len(all_chunks), len(state["retrieved_chunks"]))
     return state
 
 
@@ -205,32 +241,53 @@ def search_agent(state: AgentState) -> AgentState:
 async def timeline_agent_async(state: AgentState) -> AgentState:
     """Calls Timeline Service to build chronological event sequence."""
     topic = state["question"]
+    url = f"{TIMELINE_URL}/timeline/{quote(topic, safe='')}"
+    log.info("agent[timeline] start: GET %s", url)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(
-                f"{TIMELINE_URL}/timeline/{quote(topic, safe='')}",
+                url,
                 params={"project": state.get("project_filter", "")},
             )
             if resp.status_code == 200:
                 state["timeline"] = resp.json()
                 state["processing_steps"].append("Timeline: Built chronological sequence")
+                log.info("agent[timeline] done: %d events",
+                         len((state["timeline"] or {}).get("events", [])))
             else:
                 state["timeline"] = None
+                log.warning("agent[timeline] service returned %s: %s",
+                            resp.status_code, resp.text[:300])
     except Exception as e:
         state["timeline"] = None
         state["processing_steps"].append(f"Timeline: Unavailable ({str(e)[:50]})")
+        log.warning("agent[timeline] failed (non-fatal): %r", e)
     return state
 
 
 def timeline_agent(state: AgentState) -> AgentState:
     import asyncio
-    return asyncio.get_event_loop().run_until_complete(timeline_agent_async(state))
+    # NOTE: this node runs synchronously inside LangGraph, which itself is invoked
+    # from an async FastAPI route — i.e. the event loop is already running. Using
+    # run_until_complete() here raises "This event loop is already running".
+    # Run the coroutine on a private loop in a worker thread so it works either way.
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        import concurrent.futures
+        log.info("agent[timeline] running in worker thread (event loop already running)")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, timeline_agent_async(state)).result()
+    return asyncio.run(timeline_agent_async(state))
 
 
 # ── Agent 4: Decision Analyzer ─────────────────────────────────
 
 def decision_agent(state: AgentState) -> AgentState:
     """Analyzes retrieved context to identify decisions, dissent, and outcomes."""
+    log.info("agent[decision] start: analyzing %d chunks", len(state.get("retrieved_chunks", [])))
 
     chunks_text = "\n---\n".join([
         f"[{c['metadata'].get('doc_type', '?')} | "
@@ -291,6 +348,7 @@ ANALYSIS: <your detailed analysis>""",
     except Exception:
         state["confidence_score"] = 0.5
 
+    log.info("agent[decision] done: confidence=%.2f", state.get("confidence_score", 0.0))
     return state
 
 
@@ -298,6 +356,7 @@ ANALYSIS: <your detailed analysis>""",
 
 def answer_agent(state: AgentState) -> AgentState:
     """Synthesizes a final answer with sources and timeline."""
+    log.info("agent[answer] start")
     answer_text = generate_text(
         f"""You are DecisionDNA, an AI organizational memory engine.
 Generate a clear, structured answer to the user's question.
@@ -338,6 +397,8 @@ Be factual, cite document types when mentioning sources.""",
 
     state["sources"] = sources[:5]
     state["processing_steps"].append("Answer Agent: Generated final response")
+    log.info("agent[answer] done: %d chars, %d sources",
+             len(answer_text or ""), len(state["sources"]))
     return state
 
 
@@ -416,7 +477,17 @@ async def query(request: QueryRequest):
         "processing_steps": [],
     }
 
-    result = agent_graph.invoke(initial_state)
+    log.info("pipeline start: q=%r project_filter=%r", request.question[:120], request.project_filter)
+    pipeline_start = time.perf_counter()
+    try:
+        result = agent_graph.invoke(initial_state)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception("pipeline FAILED after %.0fms", (time.perf_counter() - pipeline_start) * 1000)
+        raise HTTPException(status_code=500, detail=f"Query pipeline failed: {e}")
+    log.info("pipeline done in %.0fms (steps: %s)",
+             (time.perf_counter() - pipeline_start) * 1000, result.get("processing_steps"))
 
     return {
         "question": result["question"],

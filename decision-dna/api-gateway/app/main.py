@@ -6,11 +6,20 @@ handles auth, rate limiting, and CORS.
 
 import os
 import time
+import uuid
+import logging
 import httpx
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
+
+# ── Logging ────────────────────────────────────────────────────
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [api-gateway] %(message)s",
+)
+log = logging.getLogger("api-gateway")
 try:
     from scalar_fastapi import get_scalar_api_reference
 except ImportError:  # scalar-fastapi 1.0.0 keeps it in a submodule
@@ -32,6 +41,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Request tracing ────────────────────────────────────────────
+# Logs every request in/out with a correlation id (rid) so a single
+# call can be followed across the gateway and every downstream service.
+@app.middleware("http")
+async def trace_requests(request: Request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:8]
+    client = request.client.host if request.client else "?"
+    start = time.perf_counter()
+    log.info("→ %s %s (rid=%s client=%s)", request.method, request.url.path, rid, client)
+    try:
+        response = await call_next(request)
+    except Exception:
+        dur = (time.perf_counter() - start) * 1000
+        log.exception("✗ %s %s UNHANDLED after %.0fms (rid=%s)",
+                      request.method, request.url.path, dur, rid)
+        raise
+    dur = (time.perf_counter() - start) * 1000
+    log.info("← %s %s %s %.0fms (rid=%s)",
+             request.method, request.url.path, response.status_code, dur, rid)
+    response.headers["x-request-id"] = rid
+    return response
 
 # ── Service URLs ───────────────────────────────────────────────
 SERVICES = {
@@ -78,19 +110,47 @@ async def rate_limit(request: Request):
 async def proxy(service_name: str, path: str, method: str, body=None, params=None):
     base = SERVICES.get(service_name)
     if not base:
+        log.error("proxy: unknown service '%s'", service_name)
         raise HTTPException(status_code=404, detail=f"Unknown service: {service_name}")
     url = f"{base}{path}"
-    async with httpx.AsyncClient(timeout=60) as client:
+    rid = uuid.uuid4().hex[:8]
+    headers = {"x-request-id": rid}
+    # Timeout must be >= the frontend's client timeout (90s), otherwise the gateway
+    # aborts a slow-but-working pipeline first and masks where the real delay is.
+    start = time.perf_counter()
+    log.info("→ proxy[%s] %s %s (rid=%s)", service_name, method, url, rid)
+    async with httpx.AsyncClient(timeout=120) as client:
         try:
             if method == "GET":
-                resp = await client.get(url, params=params)
+                resp = await client.get(url, params=params, headers=headers)
             elif method == "POST":
-                resp = await client.post(url, json=body)
+                resp = await client.post(url, json=body, headers=headers)
             else:
                 raise HTTPException(status_code=405, detail="Method not allowed")
-            return JSONResponse(content=resp.json(), status_code=resp.status_code)
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail=f"{service_name} is unavailable")
+        except httpx.ConnectError as e:
+            log.error("✗ proxy[%s] connection refused: %s (rid=%s)", service_name, e, rid)
+            raise HTTPException(status_code=503, detail=f"{service_name} is unavailable (connection refused)")
+        except httpx.TimeoutException as e:
+            dur = (time.perf_counter() - start) * 1000
+            log.error("✗ proxy[%s] timed out after %.0fms: %r (rid=%s)", service_name, dur, e, rid)
+            raise HTTPException(status_code=504, detail=f"{service_name} timed out")
+        except httpx.HTTPError as e:
+            log.exception("✗ proxy[%s] transport error (rid=%s)", service_name, rid)
+            raise HTTPException(status_code=502, detail=f"{service_name} transport error: {e}")
+
+    dur = (time.perf_counter() - start) * 1000
+    log.info("← proxy[%s] %s %.0fms (rid=%s)", service_name, resp.status_code, dur, rid)
+    try:
+        content = resp.json()
+    except Exception:
+        log.error("✗ proxy[%s] non-JSON response (status=%s): %s (rid=%s)",
+                  service_name, resp.status_code, resp.text[:500], rid)
+        raise HTTPException(status_code=502,
+                            detail=f"{service_name} returned a non-JSON response (status {resp.status_code})")
+    if resp.status_code >= 400:
+        log.warning("proxy[%s] downstream returned %s: %s (rid=%s)",
+                    service_name, resp.status_code, str(content)[:500], rid)
+    return JSONResponse(content=content, status_code=resp.status_code)
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -104,8 +164,12 @@ async def gateway_health():
             try:
                 r = await client.get(f"{url}/health")
                 statuses[name] = "healthy" if r.status_code == 200 else "degraded"
-            except Exception:
+                if r.status_code != 200:
+                    log.warning("health: %s at %s returned %s", name, url, r.status_code)
+            except Exception as e:
                 statuses[name] = "unreachable"
+                log.warning("health: %s at %s unreachable: %r", name, url, e)
+    log.info("health check: %s", statuses)
     return {"gateway": "healthy", "services": statuses, "timestamp": time.time()}
 
 

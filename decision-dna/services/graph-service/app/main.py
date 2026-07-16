@@ -11,7 +11,35 @@ from neo4j import AsyncGraphDatabase, AsyncDriver
 from neo4j.exceptions import Neo4jError
 from pydantic import BaseModel
 
+import logging
+import time
+import uuid
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [graph-service] %(message)s",
+)
+log = logging.getLogger("graph-service")
+
 app = FastAPI(title="Graph Service", version="1.0.0")
+
+
+@app.middleware("http")
+async def trace_requests(request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:8]
+    start = time.perf_counter()
+    log.info("→ %s %s (rid=%s)", request.method, request.url.path, rid)
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("✗ %s %s UNHANDLED after %.0fms (rid=%s)",
+                      request.method, request.url.path, (time.perf_counter() - start) * 1000, rid)
+        raise
+    log.info("← %s %s %s %.0fms (rid=%s)",
+             request.method, request.url.path, response.status_code,
+             (time.perf_counter() - start) * 1000, rid)
+    response.headers["x-request-id"] = rid
+    return response
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
 NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
@@ -33,13 +61,18 @@ class CypherQuery(BaseModel):
 @app.on_event("startup")
 async def startup():
     global driver
+    log.info("startup: connecting to Neo4j at %s (user=%s)", NEO4J_URI, NEO4J_USERNAME)
     driver = AsyncGraphDatabase.driver(
         NEO4J_URI,
         auth=(NEO4J_USERNAME, NEO4J_PASSWORD),
     )
     try:
         await driver.verify_connectivity()
+        log.info("startup: Neo4j connectivity OK")
     except Exception as exc:
+        # NOTE: this raises and CRASHES the container if Neo4j is unreachable — unlike
+        # the other services which self-heal. If graph-service keeps exiting, this is why.
+        log.error("startup: cannot connect to Neo4j at %s: %r", NEO4J_URI, exc)
         raise RuntimeError(f"Unable to connect to Neo4j at {NEO4J_URI}: {exc}") from exc
 
 
