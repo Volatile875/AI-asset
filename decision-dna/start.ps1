@@ -186,9 +186,11 @@ if (-not (Test-Path ".\.env")) {
     Write-Warn2 ".env not found; writing a template with placeholder keys."
     @'
 # --- SECRETS (fill these in) ---
-ANTHROPIC_API_KEY=your-anthropic-key
 OPENAI_API_KEY=your-openai-key
 PINECONE_API_KEY=your-pinecone-key
+
+# --- OpenAI chat model for query-service ---
+OPENAI_CHAT_MODEL=gpt-4o-mini
 
 # --- Pinecone (an index with this exact name + dimension must already exist) ---
 PINECONE_ENVIRONMENT=us-east-1
@@ -217,11 +219,11 @@ ENVIRONMENT=development
 LOG_LEVEL=INFO
 '@ | Set-Content -Path ".\.env" -Encoding ascii
     $placeholderKeys = $true
-    Write-Warn2 "Created .env - EDIT IT and add real ANTHROPIC / OPENAI / PINECONE keys, then re-run."
+    Write-Warn2 "Created .env - EDIT IT and add real OPENAI / PINECONE keys, then re-run."
 } else {
     Write-Ok ".env found"
     $envText = Get-Content ".\.env" -Raw
-    if ($envText -match 'your-(anthropic|openai|pinecone)-key' -or $envText -match 'REPLACE_WITH') {
+    if ($envText -match 'your-(openai|pinecone)-key' -or $envText -match 'REPLACE_WITH') {
         $placeholderKeys = $true
         Write-Warn2 "It looks like .env still contains PLACEHOLDER keys - Pinecone-backed services will start but not be READY."
     } else {
@@ -354,7 +356,7 @@ if ($problems.Count -eq 0 -and $uiOk) {
         Write-Host "  .env still has PLACEHOLDER keys. That's the most likely cause." -ForegroundColor Yellow
     }
     Write-Host "  If a Pinecone-backed service is UP but NOT READY:" -ForegroundColor Yellow
-    Write-Host "    1. Put real ANTHROPIC / OPENAI / PINECONE keys in .env"
+    Write-Host "    1. Put real OPENAI / PINECONE keys in .env"
     Write-Host "    2. Ensure a Pinecone index named 'ai-asset' (1024 dims, cosine) exists"
     Write-Host "    3. Re-run this script (it force-recreates, so the new keys take effect)"
     Write-Host "`n  The per-service logs above (and $script:LogFile) show the exact error."

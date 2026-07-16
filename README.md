@@ -20,7 +20,7 @@ decision-dna/
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.1-orange)](https://langchain-ai.github.io/langgraph)
-[![Claude](https://img.shields.io/badge/LLM-Claude%20Sonnet-purple)](https://anthropic.com)
+[![OpenAI](https://img.shields.io/badge/LLM-OpenAI-green)](https://openai.com)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://docker.com)
 
 ---
@@ -97,7 +97,7 @@ Your Question
 └────────┬────────┘
          ▼
 ┌─────────────────┐
-│ 4. Decision     │  Analyzes dissent, risks, outcomes with Claude
+│ 4. Decision     │  Analyzes dissent, risks, outcomes with OpenAI
 └────────┬────────┘
          ▼
 ┌─────────────────┐
@@ -136,7 +136,7 @@ but was outvoted in MTG-034.
 
 | Layer | Technology |
 |---|---|
-| LLM | Claude Sonnet (`claude-sonnet-4-6`) |
+| LLM | OpenAI chat model (`gpt-4o-mini` by default) |
 | Embeddings | OpenAI `text-embedding-3-large` |
 | Vector DB | Pinecone (serverless) |
 | Graph DB | Neo4j 5.x |
@@ -208,7 +208,7 @@ decision-dna/
 
 - Docker + Docker Compose
 - Python 3.11+
-- API Keys: Anthropic, OpenAI, Pinecone
+- API Keys: OpenAI, Pinecone
 
 ### Step 1 — Configure environment
 
@@ -365,8 +365,8 @@ GET /health
 
 | Variable | Description | Required |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Claude API key | ✅ |
-| `OPENAI_API_KEY` | For embeddings | ✅ |
+| `OPENAI_API_KEY` | Chat completions and embeddings | ✅ |
+| `OPENAI_CHAT_MODEL` | Chat model, defaults to `gpt-4o-mini` | Optional |
 | `PINECONE_API_KEY` | Vector database | ✅ |
 | `PINECONE_ENVIRONMENT` | Pinecone region | ✅ |
 | `NEO4J_URI` | Graph DB connection | ✅ |

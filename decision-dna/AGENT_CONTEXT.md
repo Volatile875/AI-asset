@@ -1,6 +1,6 @@
 # DecisionDNA — Complete Agent Context Document
 
-> This document provides full context for any AI agent (GPT-4, Claude, Gemini, etc.) working on the DecisionDNA codebase. It includes the original architecture, all changes made during integration, and the current state of the project.
+> This document provides full context for any AI agent (GPT-4, Gemini, etc.) working on the DecisionDNA codebase. It includes the original architecture, all changes made during integration, and the current state of the project.
 
 ---
 
@@ -21,8 +21,8 @@ DecisionDNA is an **AI Organizational Memory Engine** built as a microservices s
 
 | Component | Technology |
 |-----------|------------|
-| LLM | glm-5 via Openai-APi key |
-| Embeddings | OpenAI text-embedding-3-large (3072 dimensions) |
+| LLM | OpenAI chat model (`gpt-4o-mini` by default) |
+| Embeddings | OpenAI text-embedding-3-large (1024 dimensions) |
 | Vector DB | Pinecone (Serverless, AWS us-east-1) |
 | Graph DB | Neo4j 5.15 |
 | Agent Framework | LangGraph 0.1.5 |
@@ -243,7 +243,7 @@ DecisionDNA is an **AI Organizational Memory Engine** built as a microservices s
 
 **Process**:
 1. Search Pinecone for relevant documents
-2. Use Claude to extract structured timeline events
+2. Use OpenAI to extract structured timeline events
 3. Sort events by date
 4. Assess outcome and confidence score
 
@@ -324,8 +324,8 @@ Centralized Pydantic settings:
 ```python
 class Settings(BaseSettings):
     # LLM
-    anthropic_api_key: str
     openai_api_key: str
+    openai_chat_model: str = "gpt-4o-mini"
     
     # Vector DB
     pinecone_api_key: str
@@ -481,7 +481,7 @@ docker-compose up --build
    - `services/ingestion-service/app/parsers/jira_parser.py` - Fixed type annotation
 
 3. **Timeline Service**
-   - `services/timeline-service/app/main.py` - Timeline builder with Claude integration
+   - `services/timeline-service/app/main.py` - Timeline builder with OpenAI integration
 
 4. **Shared Modules**
    - `shared/__init__.py`
@@ -509,8 +509,8 @@ docker-compose up --build
 
 ```env
 # LLM
-ANTHROPIC_API_KEY=<your_key>
 OPENAI_API_KEY=<your_key>
+OPENAI_CHAT_MODEL=gpt-4o-mini
 
 # Pinecone
 PINECONE_API_KEY=<your_key>
@@ -558,7 +558,7 @@ JIRA_API_TOKEN=your_atlassian_api_token
 - **Location**: `mcp-server/server.py`
 - **Framework**: FastMCP for stdio communication
 - **Capabilities**: Jira status fetching, SQLite persistence, status history tracking
-- **Usage**: Can be invoked by Claude Desktop or other MCP-compatible AI assistants
+- **Usage**: Can be invoked by MCP-compatible AI assistants
 
 ---
 

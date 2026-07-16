@@ -8,22 +8,22 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from anthropic import Anthropic
 from fastapi import FastAPI, HTTPException
 from langchain_openai import OpenAIEmbeddings
+from openai import OpenAI
 from pinecone import Pinecone
 from pydantic import BaseModel
 
 app = FastAPI(title="Timeline Service", version="1.0.0")
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY  = os.getenv("PINECONE_API_KEY")
 INDEX_NAME        = os.getenv("PINECONE_INDEX_NAME", "ai-asset")
+CHAT_MODEL        = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
 EMBEDDING_MODEL   = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
 EMBEDDING_DIM     = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
 
-claude_client = None
+openai_client = None
 embeddings_model = None
 pc_index = None
 
@@ -33,10 +33,10 @@ def init_clients() -> bool:
     transient Pinecone/OpenAI failure can't crash startup or leave the service
     permanently unreachable — it retries on the next call and self-heals.
     Returns True once all clients are ready."""
-    global claude_client, embeddings_model, pc_index
+    global openai_client, embeddings_model, pc_index
     try:
-        if claude_client is None:
-            claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if openai_client is None:
+            openai_client = OpenAI(api_key=OPENAI_API_KEY)
         if embeddings_model is None:
             embeddings_model = OpenAIEmbeddings(
                 model=EMBEDDING_MODEL,
@@ -50,6 +50,19 @@ def init_clients() -> bool:
     except Exception as e:
         print(f"[timeline-service] client init failed (will retry on demand): {e}", flush=True)
         return False
+
+
+def generate_text(prompt: str, max_tokens: int) -> str:
+    """Generate text using OpenAI's chat completions API."""
+    if openai_client is None:
+        raise RuntimeError("OpenAI client is not initialized")
+
+    response = openai_client.chat.completions.create(
+        model=CHAT_MODEL,
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content or ""
 
 
 @app.on_event("startup")
@@ -125,19 +138,15 @@ def search_pinecone(topic: str, project: str = "", top_k: int = 20) -> List[Dict
     ]
 
 
-def extract_events_with_claude(topic: str, chunks: List[Dict]) -> List[Dict]:
-    """Ask Claude to extract structured timeline events from chunks."""
+def extract_events_with_openai(topic: str, chunks: List[Dict]) -> List[Dict]:
+    """Ask OpenAI to extract structured timeline events from chunks."""
     chunks_text = "\n---\n".join([
         f"[{c['metadata'].get('doc_type', '?')} | {c['metadata'].get('date', '?')} | doc:{c['metadata'].get('doc_id', '?')}]\n{c['metadata'].get('content_preview', '')}"
         for c in chunks
     ])
 
-    response = claude_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2000,
-        messages=[{
-            "role": "user",
-            "content": f"""Extract a chronological timeline of events related to this topic from the documents.
+    text = generate_text(
+        f"""Extract a chronological timeline of events related to this topic from the documents.
 
 Topic: {topic}
 
@@ -156,12 +165,12 @@ Return a JSON array of events. Each event must have:
 
 Return ONLY valid JSON array. No explanation, no markdown.
 Example:
-[{{"date":"2024-03-01","event_type":"discussion","title":"Initial migration proposal raised","description":"Ravi proposed migrating from AWS Lambda to Azure Functions citing cost.","participants":["Ravi","Priya"],"sentiment":"neutral","is_critical":false,"doc_id":"EMAIL-001"}}]"""
-        }]
+[{{"date":"2024-03-01","event_type":"discussion","title":"Initial migration proposal raised","description":"Ravi proposed migrating from AWS Lambda to Azure Functions citing cost.","participants":["Ravi","Priya"],"sentiment":"neutral","is_critical":false,"doc_id":"EMAIL-001"}}]""",
+        max_tokens=2000,
     )
 
     import json
-    text = response.content[0].text.strip()
+    text = text.strip()
     # Remove markdown fences if present
     if text.startswith("```"):
         text = text.split("```")[1]
@@ -174,18 +183,14 @@ Example:
 
 
 def assess_outcome(topic: str, events: List[Dict]) -> tuple:
-    """Ask Claude to assess the overall outcome and confidence."""
+    """Ask OpenAI to assess the overall outcome and confidence."""
     events_summary = "\n".join([
         f"• {e.get('date','?')}: [{e.get('event_type','?')}] {e.get('title','')} — {e.get('sentiment','neutral')}"
         for e in events
     ])
 
-    response = claude_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=300,
-        messages=[{
-            "role": "user",
-            "content": f"""Based on this event sequence about "{topic}", provide:
+    text = generate_text(
+        f"""Based on this event sequence about "{topic}", provide:
 1. A 2-sentence outcome assessment
 2. A confidence score (0.0-1.0) reflecting how well-documented this decision trail is
 
@@ -194,11 +199,10 @@ Events:
 
 Format:
 OUTCOME: <2 sentence assessment>
-CONFIDENCE: <0.0-1.0>"""
-        }]
+CONFIDENCE: <0.0-1.0>""",
+        max_tokens=300,
     )
 
-    text = response.content[0].text
     outcome = "Outcome unclear from available documents."
     confidence = 0.5
 
@@ -223,6 +227,7 @@ async def health():
         "status": "healthy",
         "ready": pc_index is not None,  # False until Pinecone/OpenAI init succeeds
         "pinecone_index": INDEX_NAME,
+        "chat_model": CHAT_MODEL,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
     }
@@ -245,8 +250,8 @@ async def build_timeline(topic: str, project: str = ""):
             total_documents=0,
         )
 
-    # Step 2: Extract events using Claude
-    raw_events = extract_events_with_claude(topic, chunks)
+    # Step 2: Extract events using OpenAI
+    raw_events = extract_events_with_openai(topic, chunks)
 
     # Step 3: Sort by date
     def parse_date_safe(d):

@@ -9,27 +9,29 @@ import os
 from urllib.parse import quote
 from typing import Any, Dict, List, Optional, TypedDict
 
+
 import httpx
-from anthropic import Anthropic
 from fastapi import FastAPI, HTTPException
 from langchain_openai import OpenAIEmbeddings
 from langgraph.graph import END, StateGraph
+from openai import OpenAI
 from pinecone import Pinecone
 from pydantic import BaseModel
+from openai import OpenAIError
 
 app = FastAPI(title="Query Service", version="1.0.0")
 
 # ── Config ─────────────────────────────────────────────────────
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY  = os.getenv("PINECONE_API_KEY")
 INDEX_NAME        = os.getenv("PINECONE_INDEX_NAME", "ai-asset")
+CHAT_MODEL        = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
 EMBEDDING_MODEL   = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
 EMBEDDING_DIM     = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
 TIMELINE_URL      = os.getenv("TIMELINE_SERVICE_URL", "http://timeline-service:8005")
 GRAPH_URL         = os.getenv("GRAPH_SERVICE_URL",    "http://graph-service:8003")
 
-claude_client = None
+openai_client = None
 embeddings_model = None
 pc_index = None
 
@@ -39,10 +41,10 @@ def init_clients() -> bool:
     transient Pinecone/OpenAI failure can't crash startup or leave the service
     permanently unreachable — it retries on the next call and self-heals.
     Returns True once all clients are ready."""
-    global claude_client, embeddings_model, pc_index
+    global openai_client, embeddings_model, pc_index
     try:
-        if claude_client is None:
-            claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if openai_client is None:
+            openai_client = OpenAI(api_key=OPENAI_API_KEY)
         if embeddings_model is None:
             embeddings_model = OpenAIEmbeddings(
                 model=EMBEDDING_MODEL,
@@ -56,6 +58,43 @@ def init_clients() -> bool:
     except Exception as e:
         print(f"[query-service] client init failed (will retry on demand): {e}", flush=True)
         return False
+
+
+def generate_text(prompt: str, max_tokens: int) -> str:
+    if openai_client is None:
+        raise RuntimeError("OpenAI client is not initialized")
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=max_tokens,
+            temperature=0.3
+        )
+
+        if not response.choices:
+            raise RuntimeError("OpenAI returned no choices.")
+
+        return response.choices[0].message.content or ""
+
+    except OpenAIError as e:
+        print(f"[OpenAI ERROR] {e}", flush=True)
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenAI API Error: {str(e)}"
+        )
+
+    except Exception as e:
+        print(f"[generate_text ERROR] {e}", flush=True)
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 @app.on_event("startup")
@@ -87,12 +126,8 @@ def planner_agent(state: AgentState) -> AgentState:
     """Breaks the user question into sub-tasks."""
     question = state["question"]
 
-    response = claude_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=500,
-        messages=[{
-            "role": "user",
-            "content": f"""You are a query planner for an organizational memory system.
+    text = generate_text(
+        f"""You are a query planner for an organizational memory system.
 Break this question into 2-4 specific search sub-tasks.
 Return ONLY a JSON array of strings.
 
@@ -101,14 +136,13 @@ Question: {question}
 Example output:
 ["Find meetings about topic X", "Find emails discussing Y", "Find Jira tickets related to Z"]
 
-Output:"""
-        }]
+Output:""",
+        max_tokens=500,
     )
 
     import json
     try:
-        text = response.content[0].text.strip()
-        sub_tasks = json.loads(text)
+        sub_tasks = json.loads(text.strip())
     except Exception:
         sub_tasks = [question]
 
@@ -121,12 +155,20 @@ Output:"""
 
 def search_agent(state: AgentState) -> AgentState:
     """Searches Pinecone vector DB for relevant chunks."""
+    if not init_clients():
+        raise RuntimeError("Search agent unavailable: Pinecone/OpenAI clients could not be initialized")
+
+    embeddings_model_local = embeddings_model
+    pc_index_local = pc_index
+    if embeddings_model_local is None or pc_index_local is None:
+        raise RuntimeError("Search agent unavailable: Pinecone/OpenAI clients are not initialized")
+
     all_chunks = []
     seen_ids = set()
 
     for task in state["sub_tasks"]:
         # Embed the sub-task query
-        query_vector = embeddings_model.embed_query(task)
+        query_vector = embeddings_model_local.embed_query(task)
 
         # Build filter
         filter_dict = {}
@@ -134,7 +176,7 @@ def search_agent(state: AgentState) -> AgentState:
             filter_dict["project"] = {"$eq": state["project_filter"]}
 
         # Query Pinecone
-        results = pc_index.query(
+        results = pc_index_local.query(
             vector=query_vector,
             top_k=5,
             include_metadata=True,
@@ -189,27 +231,30 @@ def timeline_agent(state: AgentState) -> AgentState:
 
 def decision_agent(state: AgentState) -> AgentState:
     """Analyzes retrieved context to identify decisions, dissent, and outcomes."""
+
     chunks_text = "\n---\n".join([
-        f"[{c['metadata'].get('doc_type', '?')} | {c['metadata'].get('date', '?')} | Score: {c['score']:.2f}]\n{c['content']}"
+        f"[{c['metadata'].get('doc_type', '?')} | "
+        f"{c['metadata'].get('date', '?')} | "
+        f"Score: {c['score']:.2f}]\n{c['content']}"
         for c in state["retrieved_chunks"]
     ])
 
+    # Safe handling for Optional timeline
+    timeline = state.get("timeline") or {}
+    events = timeline.get("events", [])
+
     timeline_text = ""
-    if state.get("timeline"):
-        events = state["timeline"].get("events", [])
+    if events:
         timeline_text = "\n".join([
             f"• {e.get('date', '?')}: {e.get('title', '')} — {e.get('description', '')}"
             for e in events
         ])
 
-    response = claude_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1000,
-        messages=[{
-            "role": "user",
-            "content": f"""You are analyzing organizational documents to understand decisions made.
+    analysis_text = generate_text(
+        f"""You are analyzing organizational documents to understand decisions made.
 
-Question: {state['question']}
+Question:
+{state['question']}
 
 Retrieved Documents:
 {chunks_text}
@@ -230,16 +275,16 @@ PARTICIPANTS: <who was involved and their stance>
 RISKS_FLAGGED: <risks that were mentioned>
 OUTCOME: <what happened after>
 CONFIDENCE: <0.0-1.0>
-ANALYSIS: <your detailed analysis>"""
-        }]
+ANALYSIS: <your detailed analysis>""",
+        max_tokens=1000,
     )
 
-    state["decision_analysis"] = response.content[0].text
+    state["decision_analysis"] = analysis_text
     state["processing_steps"].append("Decision Agent: Analyzed decisions and dissent")
 
     # Extract confidence score
     try:
-        for line in response.content[0].text.split("\n"):
+        for line in analysis_text.split("\n"):
             if line.startswith("CONFIDENCE:"):
                 score = float(line.split(":")[1].strip())
                 state["confidence_score"] = min(max(score, 0.0), 1.0)
@@ -253,12 +298,8 @@ ANALYSIS: <your detailed analysis>"""
 
 def answer_agent(state: AgentState) -> AgentState:
     """Synthesizes a final answer with sources and timeline."""
-    response = claude_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1500,
-        messages=[{
-            "role": "user",
-            "content": f"""You are DecisionDNA, an AI organizational memory engine.
+    answer_text = generate_text(
+        f"""You are DecisionDNA, an AI organizational memory engine.
 Generate a clear, structured answer to the user's question.
 
 Question: {state['question']}
@@ -273,11 +314,11 @@ Format your answer as:
 4. What risks were flagged (if any)
 5. Outcome (if known)
 
-Be factual, cite document types when mentioning sources."""
-        }]
+Be factual, cite document types when mentioning sources.""",
+        max_tokens=1500,
     )
 
-    state["final_answer"] = response.content[0].text
+    state["final_answer"] = answer_text
 
     # Build sources list from retrieved chunks
     seen_docs = set()
@@ -348,6 +389,7 @@ async def health():
         "status": "healthy",
         "ready": pc_index is not None,  # False until Pinecone/OpenAI init succeeds
         "pinecone_index": INDEX_NAME,
+        "chat_model": CHAT_MODEL,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
     }
