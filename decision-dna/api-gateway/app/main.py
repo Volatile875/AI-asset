@@ -11,7 +11,13 @@ from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
-from scalar_fastapi import get_scalar_api_reference
+try:
+    from scalar_fastapi import get_scalar_api_reference
+except ImportError:  # scalar-fastapi 1.0.0 keeps it in a submodule
+    try:
+        from scalar_fastapi.scalar_fastapi import get_scalar_api_reference
+    except ImportError:
+        get_scalar_api_reference = None
 
 app = FastAPI(
     title="DecisionDNA API Gateway",
@@ -142,6 +148,8 @@ async def get_entity(entity: str):
 ### Scalar API Documentation
 @app.get("/scalar", include_in_schema=False)
 def get_scalar_docs():
+    if get_scalar_api_reference is None:
+        raise HTTPException(status_code=503, detail="Scalar docs unavailable; use /docs instead")
     return get_scalar_api_reference(
         openapi_url=app.openapi_url,
         title="Scalar API",

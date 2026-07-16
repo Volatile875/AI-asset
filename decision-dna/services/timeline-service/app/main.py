@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from anthropic import Anthropic
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone
 from pydantic import BaseModel
@@ -28,17 +28,35 @@ embeddings_model = None
 pc_index = None
 
 
+def init_clients() -> bool:
+    """Lazily (re)initialize external clients. Idempotent and never raises, so a
+    transient Pinecone/OpenAI failure can't crash startup or leave the service
+    permanently unreachable — it retries on the next call and self-heals.
+    Returns True once all clients are ready."""
+    global claude_client, embeddings_model, pc_index
+    try:
+        if claude_client is None:
+            claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if embeddings_model is None:
+            embeddings_model = OpenAIEmbeddings(
+                model=EMBEDDING_MODEL,
+                dimensions=EMBEDDING_DIM,
+                openai_api_key=OPENAI_API_KEY,
+            )
+        if pc_index is None:
+            pc = Pinecone(api_key=PINECONE_API_KEY)
+            pc_index = pc.Index(INDEX_NAME)
+        return True
+    except Exception as e:
+        print(f"[timeline-service] client init failed (will retry on demand): {e}", flush=True)
+        return False
+
+
 @app.on_event("startup")
 async def startup():
-    global claude_client, embeddings_model, pc_index
-    claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    embeddings_model = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        dimensions=EMBEDDING_DIM,
-        openai_api_key=OPENAI_API_KEY,
-    )
-    pc = Pinecone(api_key=PINECONE_API_KEY)
-    pc_index = pc.Index(INDEX_NAME)
+    # Non-fatal: never abort startup on a dependency hiccup. The service must stay
+    # up and reachable so it can self-heal; clients are (re)initialized on demand.
+    init_clients()
 
 
 # ── Models ─────────────────────────────────────────────────────
@@ -203,6 +221,7 @@ async def health():
     return {
         "service": "timeline-service",
         "status": "healthy",
+        "ready": pc_index is not None,  # False until Pinecone/OpenAI init succeeds
         "pinecone_index": INDEX_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
@@ -211,6 +230,9 @@ async def health():
 
 @app.get("/timeline/{topic}")
 async def build_timeline(topic: str, project: str = ""):
+    if not init_clients():
+        raise HTTPException(status_code=503, detail="Upstream (Pinecone/OpenAI) not ready - check API keys and that the index exists")
+
     # Step 1: Search for relevant documents
     chunks = search_pinecone(topic, project)
 
