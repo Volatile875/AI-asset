@@ -12,3 +12,6 @@ corp-ca.crt
 
 # start.ps1 run logs
 logs/
+
+.cypher/
+

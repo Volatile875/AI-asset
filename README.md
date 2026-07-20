@@ -56,7 +56,7 @@ Every company hemorrhages knowledge daily. When employees leave, change teams, o
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    Streamlit UI  :3000                        │
+│                    Streamlit UI  :8501                     │
 └───────────────────────────┬──────────────────────────────────┘
                             │
 ┌───────────────────────────▼──────────────────────────────────┐
@@ -187,7 +187,7 @@ decision-dna/
 │   ├── config/settings.py     # Centralized config
 │   └── utils/helpers.py       # Logger, HTTP client, date utils
 │
-├── 📁 frontend/               # PORT 3000 — Streamlit UI
+├── 📁 frontend/               # PORT 8501 — Streamlit UI
 │   └── app.py                 # Ask · Timeline · Graph · Ingest · Health
 │
 ├── 📁 data/synthetic/         # Generated test data
@@ -247,7 +247,7 @@ python scripts/ingest_all.py
 ### Step 5 — Open the UI
 
 ```
-http://localhost:3000
+http://localhost:8501
 ```
 
 ---

@@ -10,6 +10,8 @@ import time
 
 import httpx
 import streamlit as st
+from typing import Optional
+
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -137,7 +139,7 @@ with st.sidebar:
 
 # ── Helper Functions ───────────────────────────────────────────
 
-def call_gateway(path: str, method: str = "GET", payload: dict = None) -> dict:
+def call_gateway(path: str, method: str = "GET", payload: Optional[dict] = None) -> dict:
     url = f"{GATEWAY_URL}{path}"
     start = time.perf_counter()
     log.info("→ %s %s", method, url)

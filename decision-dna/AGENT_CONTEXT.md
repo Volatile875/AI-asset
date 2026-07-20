@@ -43,7 +43,7 @@ DecisionDNA is an **AI Organizational Memory Engine** built as a microservices s
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌──────────────┐                                                   │
-│  │   Frontend   │  Streamlit UI (Port 3000)                        │
+│  │   Frontend   │  Streamlit UI (Port 8501)                        │
 │  │  (Streamlit) │  - Ask DecisionDNA                               │
 │  └──────┬───────┘  - Decision Timeline                             │
 │         │          - Knowledge Graph                               │
@@ -264,8 +264,8 @@ DecisionDNA is an **AI Organizational Memory Engine** built as a microservices s
 
 ---
 
-### 7. Frontend (Port 3000)
-**File**: `frontend/app.py`
+### 7. Frontend (Port 8501)
+**File**: `frontend/app.py``
 
 **Pages**:
 1. **Ask DecisionDNA** - Main Q&A interface
@@ -442,7 +442,7 @@ services:
   query-service:        # Port 8004
   timeline-service:     # Port 8005
   api-gateway:          # Port 8000
-  frontend:             # Port 3000
+  frontend:             # Port 8501
 ```
 
 ---
@@ -457,7 +457,7 @@ cd c:/project/AI_asset/decision-dna
 docker-compose up --build
 
 # Access points:
-# - Frontend:      http://localhost:3000
+# - Frontend:      http://localhost:8501
 # - API Gateway:   http://localhost:8000
 # - Scalar Docs:   http://localhost:8000/scalar
 # - Neo4j Browser: http://localhost:7474
@@ -649,4 +649,4 @@ User Question: "Why did we reject Vendor X?"
 - **Project**: DecisionDNA
 - **Type**: AI Organizational Memory Engine
 - **Repository**: Local development
-- **Documentation**: This file + README.md + PROJECT_STRUCTURE.md
+- **Documentation**: This file + README.md + PROJECT_ST
