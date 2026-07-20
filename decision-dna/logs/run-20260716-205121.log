@@ -1,0 +1,86 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260716205121
+Username: AzureAD\PratikThakur
+RunAs User: AzureAD\PratikThakur
+Configuration Name: 
+Machine: ADT-PF5YR9J0 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\PratikThakur\AppData\Local\Programs\Microsoft VS Code\fc3def6774\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 49296
+PSVersion: 5.1.26100.8655
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8655
+BuildVersion: 10.0.26100.8655
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+==================================================================
+  DecisionDNA - Docker launcher (Windows)
+  2026-07-16 20:51:21
+==================================================================
+
+==> 1/6  Preflight checks
+    [OK]   docker found: Docker version 29.5.3, build d1c06ef
+    [OK]   compose found: Docker Compose version v5.1.4
+    [OK]   Docker daemon is running
+    [OK]   docker-compose.yml found
+
+==> 2/6  Corporate TLS CA (corp-ca.crt in each build context)
+    [OK]   corp-ca.crt already present in all 7 build contexts
+
+==> 3/6  Environment file (.env)
+    [OK]   .env found
+    [OK]   API keys appear to be filled in
+
+==> 4/6  Host port check
+    [WARN] Port 6379 (Redis) is already in use.
+    [WARN]   -> set REDIS_HOST_PORT=<free port> in .env, then re-run.
+    [WARN] Port 7474 (Neo4j browser) is already in use.
+    [WARN]   -> free it, or change the host port in docker-compose.yml.
+    [WARN] Port 8000 (API gateway) is already in use.
+    [WARN]   -> set GATEWAY_HOST_PORT=<free port> in .env, then re-run.
+    [WARN] Port 8501 (Streamlit UI) is already in use.
+    [WARN]   -> free it, or change the host port in docker-compose.yml.
+
+==> 5/6  Building images and (re)creating containers (first build can take 5-10 min)
+
+    [OK]   docker compose reported the stack (re)created
+
+==> 6/6  Verifying the system is up
+    Gateway published on host port 8000 -> polling http://localhost:8000/health
+    [OK]   API gateway is responding
+
+    Service health (reachable = process up; ready = connected to Pinecone/OpenAI):
+      - ingestion   healthy + ready
+      - embedding   healthy + ready
+PS>TerminatingError(Invoke-RestMethod): "The underlying connection was closed: The connection was closed unexpectedly."
+      - graph       DOWN (unreachable)
+      - query       healthy + ready
+      - timeline    healthy + ready
+      - frontend    reachable (HTTP 200)
+
+==> Collecting logs for services that aren't fully healthy
+
+    ----- docker compose logs --tail 40 graph-service -----
+      graph-service-1  | INFO:     Will watch for changes in these directories: ['/app']
+      graph-service-1  | INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
+      graph-service-1  | INFO:     Started reloader process [1] using WatchFiles
+      graph-service-1  | INFO:     Started server process [8]
+      graph-service-1  | INFO:     Waiting for application startup.
+
+==================================================================
+  PARTIAL - the stack is running but not everything is ready.
+==================================================================
+  If a Pinecone-backed service is UP but NOT READY:
+    1. Put real OPENAI / PINECONE keys in .env
+    2. Ensure a Pinecone index named 'ai-asset' (1024 dims, cosine) exists
+    3. Re-run this script (it force-recreates, so the new keys take effect)
+
+  The per-service logs above (and C:\project\AI_asset\decision-dna\logs\run-20260716-205121.log) show the exact error.
+  The UI at http://localhost:8501 works regardless for browsing.
+**********************
+Windows PowerShell transcript end
+End time: 20260716205209
+**********************

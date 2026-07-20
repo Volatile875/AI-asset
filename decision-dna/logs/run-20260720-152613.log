@@ -1,0 +1,119 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260720152613
+Username: AzureAD\PratikThakur
+RunAs User: AzureAD\PratikThakur
+Configuration Name: 
+Machine: ADT-PF5YR9J0 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\PratikThakur\AppData\Local\Programs\Microsoft VS Code\fc3def6774\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 9392
+PSVersion: 5.1.26100.8655
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8655
+BuildVersion: 10.0.26100.8655
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+==================================================================
+  DecisionDNA - Docker launcher (Windows)
+  2026-07-20 15:26:13
+==================================================================
+
+==> 1/6  Preflight checks
+    [OK]   docker found: Docker version 29.5.3, build d1c06ef
+    [OK]   compose found: Docker Compose version v5.1.4
+PS>TerminatingError(docker.exe): "The running command stopped because the preference variable "ErrorActionPreference" or common parameter is set to Stop: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified."
+>> TerminatingError(docker.exe): "The running command stopped because the preference variable "ErrorActionPreference" or common parameter is set to Stop: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified."
+>> TerminatingError(docker.exe): "The running command stopped because the preference variable "ErrorActionPreference" or common parameter is set to Stop: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified."
+The running command stopped because the preference variable "ErrorActionPreference" or common parameter is set to Stop: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+docker : failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the
+daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+At C:\project\AI_asset\decision-dna\start.ps1:152 char:1
++ docker info *> $null
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (failed to conne...file specified.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B
+(venv) .\start.ps1
+==================================================================
+  DecisionDNA - Docker launcher (Windows)
+  2026-07-20 15:28:01
+==================================================================
+
+==> 1/6  Preflight checks
+    [OK]   docker found: Docker version 29.5.3, build d1c06ef
+    [OK]   compose found: Docker Compose version v5.1.4
+    [OK]   Docker daemon is running
+    [OK]   docker-compose.yml found
+
+==> 2/6  Corporate TLS CA (corp-ca.crt in each build context)
+    [OK]   corp-ca.crt already present in all 7 build contexts
+
+==> 3/6  Environment file (.env)
+    [OK]   .env found
+    [OK]   API keys appear to be filled in
+
+==> 4/6  Host port check
+    [OK]   Port 6379 (Redis) is free
+    [OK]   Port 7474 (Neo4j browser) is free
+    [WARN] Port 8000 (API gateway) is already in use.
+    [WARN]   -> set GATEWAY_HOST_PORT=<free port> in .env, then re-run.
+    [WARN] Port 8501 (Streamlit UI) is already in use.
+    [WARN]   -> free it, or change the host port in docker-compose.yml.
+
+==> 5/6  Building images and (re)creating containers (first build can take 5-10 min)
+
+    [OK]   docker compose reported the stack (re)created
+
+==> 6/6  Verifying the system is up
+    Gateway published on host port 8000 -> polling http://localhost:8000/health
+    [OK]   API gateway is responding
+
+    Service health (reachable = process up; ready = connected to Pinecone/OpenAI):
+      - ingestion   healthy + ready
+      - embedding   healthy + ready
+      - graph       healthy + ready
+      - query       healthy + ready
+      - timeline    healthy + ready
+      - frontend    reachable (HTTP 200)
+
+==================================================================
+  SUCCESS - DecisionDNA is up and every service is healthy + ready.
+==================================================================
+  Open the UI:        http://localhost:8501
+  API gateway:        http://localhost:8000
+  API docs (Scalar):  http://localhost:8000/scalar
+  Neo4j browser:      http://localhost:7474   (neo4j / password123)
+
+  Next: load data ->
+    Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/ingest `
+      -ContentType 'application/json' `
+      -Body '{"data_dir":"/app/data/synthetic","trigger_embedding":true,"trigger_graph":true}'
+
+  Full log written to: C:\project\AI_asset\decision-dna\logs\run-20260720-152801.log
+]633;D;0]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B
+(venv) Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/ingest `
+      -ContentType 'application/json' `
+      -Body '{"data_dir":"/app/data/synthetic","trigger_embedding":true,"trigger_graph":true}'
+
+job_id                               status   message
+------                               ------   -------
+389ac58f-0b82-4bdf-9600-b680ae120b6c accepted Ingestion started. Poll /status/{job_id} for progress.
+
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B
+(venv) Invoke-RestMethod http://localhost:8000/api/v1/ingest/status/389ac58f-0b82-4bdf-9600-b680ae120b6c
+
+status    progress total_docs completed_at
+------    -------- ---------- ------------
+completed jira:5   11         2026-07-20T09:59:08.645205
+
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B
+(venv) cls
+]633;D;0]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cproject\x5cAI_asset\x5cdecision-dnaPS C:\project\AI_asset\decision-dna> ]633;B

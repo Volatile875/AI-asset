@@ -6,3 +6,5 @@ __pycache__/
 *.py[cod]
 .mypy_cache/
 .vscode/
+.corp-ca.crt
+log/

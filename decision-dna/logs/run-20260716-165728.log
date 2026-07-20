@@ -1,0 +1,123 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260716165728
+Username: AzureAD\PratikThakur
+RunAs User: AzureAD\PratikThakur
+Configuration Name: 
+Machine: ADT-PF5YR9J0 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\PratikThakur\AppData\Local\Programs\Microsoft VS Code\fc3def6774\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 14460
+PSVersion: 5.1.26100.8655
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8655
+BuildVersion: 10.0.26100.8655
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+==================================================================
+  DecisionDNA - Docker launcher (Windows)
+  2026-07-16 16:57:28
+==================================================================
+
+==> 1/6  Preflight checks
+    [OK]   docker found: Docker version 29.5.3, build d1c06ef
+    [OK]   compose found: Docker Compose version v5.1.4
+    [OK]   Docker daemon is running
+    [OK]   docker-compose.yml found
+
+==> 2/6  Corporate TLS CA (corp-ca.crt in each build context)
+    [OK]   corp-ca.crt already present in all 7 build contexts
+
+==> 3/6  Environment file (.env)
+    [OK]   .env found
+    [OK]   API keys appear to be filled in
+
+==> 4/6  Host port check
+    [WARN] Port 6379 (Redis) is already in use.
+    [WARN]   -> set REDIS_HOST_PORT=<free port> in .env, then re-run.
+    [WARN] Port 7474 (Neo4j browser) is already in use.
+    [WARN]   -> free it, or change the host port in docker-compose.yml.
+    [WARN] Port 8000 (API gateway) is already in use.
+    [WARN]   -> set GATEWAY_HOST_PORT=<free port> in .env, then re-run.
+    [WARN] Port 8501 (Streamlit UI) is already in use.
+    [WARN]   -> free it, or change the host port in docker-compose.yml.
+
+==> 5/6  Building images and (re)creating containers (first build can take 5-10 min)
+
+    [OK]   docker compose reported the stack (re)created
+
+==> 6/6  Verifying the system is up
+    Gateway published on host port 8000 -> polling http://localhost:8000/health
+PS>TerminatingError(Invoke-RestMethod): "The underlying connection was closed: The connection was closed unexpectedly."
+    ...waiting for gateway (attempt 1)
+    [OK]   API gateway is responding
+
+    Service health (reachable = process up; ready = connected to Pinecone/OpenAI):
+      - ingestion   healthy + ready
+      - embedding   healthy + ready
+PS>TerminatingError(Invoke-RestMethod): "The underlying connection was closed: The connection was closed unexpectedly."
+      - graph       DOWN (unreachable)
+      - query       healthy + ready
+      - timeline    healthy + ready
+      - frontend    reachable (HTTP 200)
+
+==> Collecting logs for services that aren't fully healthy
+
+    ----- docker compose logs --tail 40 graph-service -----
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 732, in lifespan
+      graph-service-1  |     async with self.lifespan_context(app) as maybe_state:
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 608, in __aenter__
+      graph-service-1  |     await self._router.startup()
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 709, in startup
+      graph-service-1  |     await handler()
+      graph-service-1  |   File "/app/app/main.py", line 29, in startup
+      graph-service-1  |     await driver.verify_connectivity()
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/driver.py", line 1033, in verify_connectivity
+      graph-service-1  |     await self._get_server_info(session_config)
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/driver.py", line 1244, in _get_server_info
+      graph-service-1  |     return await session._get_server_info()
+      graph-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/work/session.py", line 172, in _get_server_info
+      graph-service-1  |     await self._connect(READ_ACCESS, liveness_check_timeout=0)
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/work/session.py", line 130, in _connect
+      graph-service-1  |     await super()._connect(
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/work/workspace.py", line 182, in _connect
+      graph-service-1  |     self._connection = await self._pool.acquire(**acquire_kwargs_)
+      graph-service-1  |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/io/_pool.py", line 529, in acquire
+      graph-service-1  |     return await self._acquire(
+      graph-service-1  |            ^^^^^^^^^^^^^^^^^^^^
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/io/_pool.py", line 316, in _acquire
+      graph-service-1  |     return await connection_creator()
+      graph-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/io/_pool.py", line 166, in connection_creator
+      graph-service-1  |     connection = await self.opener(
+      graph-service-1  |                  ^^^^^^^^^^^^^^^^^^
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/io/_pool.py", line 503, in opener
+      graph-service-1  |     return await AsyncBolt.open(
+      graph-service-1  |            ^^^^^^^^^^^^^^^^^^^^^
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async/io/_bolt.py", line 401, in open
+      graph-service-1  |     await AsyncBoltSocket.connect(
+      graph-service-1  |   File "/usr/local/lib/python3.11/site-packages/neo4j/_async_compat/network/_bolt_socket.py", line 429, in connect
+      graph-service-1  |     raise ServiceUnavailable(
+      graph-service-1  | neo4j.exceptions.ServiceUnavailable: Couldn't connect to neo4j:7687 (resolved to ('172.18.0.3:7687',)):
+      graph-service-1  | Failed to establish connection to ResolvedIPv4Address(('172.18.0.3', 7687)) (reason [Errno 111] Connect call failed ('172.18.0.3', 7687))
+      graph-service-1  |
+      graph-service-1  | ERROR:    Application startup failed. Exiting.
+
+==================================================================
+  PARTIAL - the stack is running but not everything is ready.
+==================================================================
+  If a Pinecone-backed service is UP but NOT READY:
+    1. Put real OPENAI / PINECONE keys in .env
+    2. Ensure a Pinecone index named 'ai-asset' (1024 dims, cosine) exists
+    3. Re-run this script (it force-recreates, so the new keys take effect)
+
+  The per-service logs above (and C:\project\AI_asset\decision-dna\logs\run-20260716-165728.log) show the exact error.
+  The UI at http://localhost:8501 works regardless for browsing.
+**********************
+Windows PowerShell transcript end
+End time: 20260716165834
+**********************
