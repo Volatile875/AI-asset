@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AI_AGENT_GUIDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Project
 
@@ -19,7 +19,7 @@ Six FastAPI microservices behind an API gateway, plus a Streamlit UI and a stand
 | embedding-service | 8002 | Chunks (`RecursiveCharacterTextSplitter`), embeds via OpenAI, upserts to Pinecone |
 | graph-service | 8003 | Builds/queries the Neo4j knowledge graph (Person/Project/Decision/Meeting/Ticket/Email nodes) |
 | query-service | 8004 | The core: a LangGraph 5-agent pipeline (Planner → Search → Timeline → Decision → Answer) |
-| timeline-service | 8005 | Uses Claude to extract structured, dated timeline events from Pinecone hits |
+| timeline-service | 8005 | Uses OpenAI to extract structured, dated timeline events from Pinecone hits |
 | frontend | 8501 | Streamlit UI: Ask / Timeline / Graph / Ingest / Health |
 | mcp-server | stdio | FastMCP server for live Jira status + SQLite history; run separately, not in compose |
 
@@ -28,7 +28,7 @@ Data path: raw JSON in `data/synthetic/{emails,meetings,jira}/` → ingestion no
 ### Critical structural gotchas
 
 - **`shared/` is NOT wired into the services.** Each service's `Dockerfile` does `COPY . .` from its own directory only, so `shared/` never reaches the containers, and no service imports it (`grep` for `from shared` returns nothing). Each `app/main.py` reads config **directly from `os.getenv(...)`** with its own inline defaults. Treat `shared/config/settings.py`, `shared/models/schemas.py`, and `shared/utils/helpers.py` as reference/aspirational scaffolding — editing them does not change running behavior. To change a service's config, edit that service's `main.py` and/or the `.env`.
-- **The two context docs drift from the code.** [decision-dna/AGENT_CONTEXT.md](decision-dna/AGENT_CONTEXT.md) and the README are useful for intent but out of date on specifics. When they conflict with source, trust the source. Known drifts: LLM model is `claude-sonnet-4-6` (hardcoded in service `main.py` files, e.g. [query-service](decision-dna/services/query-service/app/main.py)); Pinecone index defaults to `ai-asset` and embeddings use `1024` dimensions (not `decision-dna` / `3072` as docs claim).
+- **The two context docs can drift from the code.** [decision-dna/AGENT_CONTEXT.md](decision-dna/AGENT_CONTEXT.md) and the README are useful for intent, but when they conflict with source, trust the source. The current LLM path uses OpenAI chat completions through `OPENAI_API_KEY`; Pinecone index defaults to `ai-asset` and embeddings use `1024` dimensions.
 - **Neo4j has two possible targets.** `docker-compose.yml` runs a **local** Neo4j (`neo4j:5.15`, auth `neo4j/password123`), but `shared/config/settings.py` defaults to a **cloud Aura** URI. The actual connection is whatever `.env` (`NEO4J_URI`, `NEO4J_PASSWORD`) provides to each service — set this deliberately.
 - **Duplicated synthetic data.** Both `data/synthetic/` and `scripts/data/synthetic/` exist. Compose mounts `./data` to `/app/data`, and ingestion reads `/app/data/synthetic`, so `decision-dna/data/synthetic/` is the one that matters at runtime.
 
@@ -40,7 +40,7 @@ All commands run from `decision-dna/`.
 cd decision-dna
 
 # 1. Configure — no .env.example is committed; create .env from the vars below
-#    Required: ANTHROPIC_API_KEY, OPENAI_API_KEY, PINECONE_API_KEY, NEO4J_PASSWORD
+#    Required: OPENAI_API_KEY, PINECONE_API_KEY, NEO4J_PASSWORD
 #    Plus PINECONE_INDEX_NAME, EMBEDDING_DIMENSIONS, service URLs (see AGENT_CONTEXT.md)
 
 # 2. Generate synthetic data (100 emails, 50 meetings, 100 Jira tickets → data/synthetic/)

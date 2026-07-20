@@ -1,279 +1,223 @@
-"""
+﻿"""
 services/graph-service/app/main.py
-Builds a Neo4j knowledge graph from documents.
-Nodes: Person, Project, Decision, Meeting, Ticket, Risk
-Edges: ATTENDED, MADE_DECISION, FLAGGED_RISK, LINKED_TO, OVERRULED
+Graph Service for DecisionDNA.
 """
 
 import os
-import re
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
-from neo4j import AsyncGraphDatabase
+from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j.exceptions import Neo4jError
 from pydantic import BaseModel
+
+import logging
+import time
+import uuid
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [graph-service] %(message)s",
+)
+log = logging.getLogger("graph-service")
 
 app = FastAPI(title="Graph Service", version="1.0.0")
 
-NEO4J_URI  = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
-NEO4J_USER = os.getenv("NEO4J_USERNAME", "neo4j")
-NEO4J_PASS = os.getenv("NEO4J_PASSWORD", "password123")
 
-driver = None
+@app.middleware("http")
+async def trace_requests(request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:8]
+    start = time.perf_counter()
+    log.info("→ %s %s (rid=%s)", request.method, request.url.path, rid)
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("✗ %s %s UNHANDLED after %.0fms (rid=%s)",
+                      request.method, request.url.path, (time.perf_counter() - start) * 1000, rid)
+        raise
+    log.info("← %s %s %s %.0fms (rid=%s)",
+             request.method, request.url.path, response.status_code,
+             (time.perf_counter() - start) * 1000, rid)
+    response.headers["x-request-id"] = rid
+    return response
 
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
+NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 
-@app.on_event("startup")
-async def startup():
-    global driver
-    driver = AsyncGraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
-    await driver.verify_connectivity()
-    await create_constraints()
+driver: Optional[AsyncDriver] = None
 
-
-@app.on_event("shutdown")
-async def shutdown():
-    if driver:
-        await driver.close()
-
-
-# ── Schema Setup ───────────────────────────────────────────────
-
-async def create_constraints():
-    async with driver.session() as session:
-        constraints = [
-            "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.name IS UNIQUE",
-            "CREATE CONSTRAINT IF NOT EXISTS FOR (proj:Project) REQUIRE proj.name IS UNIQUE",
-            "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Decision) REQUIRE d.id IS UNIQUE",
-            "CREATE CONSTRAINT IF NOT EXISTS FOR (m:Meeting) REQUIRE m.id IS UNIQUE",
-            "CREATE CONSTRAINT IF NOT EXISTS FOR (t:Ticket) REQUIRE t.id IS UNIQUE",
-        ]
-        for constraint in constraints:
-            await session.run(constraint)
-
-
-# ── Models ─────────────────────────────────────────────────────
 
 class BuildGraphRequest(BaseModel):
     documents: List[Dict[str, Any]]
 
 
-class GraphQueryRequest(BaseModel):
-    cypher: str
-    params: Dict[str, Any] = {}
+class CypherQuery(BaseModel):
+    query: str
+    params: Optional[Dict[str, Any]] = None
 
 
-# ── Graph Building ─────────────────────────────────────────────
-
-async def process_meeting(session, doc: Dict[str, Any]):
-    meeting_id = doc["doc_id"]
-    project = doc.get("project") or "General"
-    decisions = doc.get("decisions", [])
-
-    # Create Meeting node
-    await session.run(
-        """
-        MERGE (m:Meeting {id: $id})
-        SET m.title = $title, m.date = $date, m.project = $project
-        """,
-        id=meeting_id, title=doc.get("title", ""), date=doc.get("date", ""), project=project,
+@app.on_event("startup")
+async def startup():
+    global driver
+    log.info("startup: connecting to Neo4j at %s (user=%s)", NEO4J_URI, NEO4J_USERNAME)
+    driver = AsyncGraphDatabase.driver(
+        NEO4J_URI,
+        auth=(NEO4J_USERNAME, NEO4J_PASSWORD),
     )
-
-    # Create Project node and link
-    await session.run(
-        """
-        MERGE (proj:Project {name: $project})
-        WITH proj
-        MATCH (m:Meeting {id: $meeting_id})
-        MERGE (m)-[:PART_OF]->(proj)
-        """,
-        project=project, meeting_id=meeting_id,
-    )
-
-    # Create Person nodes and ATTENDED relationships
-    for person in doc.get("participants", []):
-        name = person.strip()
-        if not name:
-            continue
-        await session.run(
-            """
-            MERGE (p:Person {name: $name})
-            WITH p
-            MATCH (m:Meeting {id: $meeting_id})
-            MERGE (p)-[:ATTENDED]->(m)
-            """,
-            name=name, meeting_id=meeting_id,
-        )
-
-    # Create Decision nodes
-    for i, decision_text in enumerate(decisions):
-        decision_id = f"{meeting_id}_decision_{i}"
-        await session.run(
-            """
-            MERGE (d:Decision {id: $id})
-            SET d.description = $desc, d.date = $date, d.project = $project
-            WITH d
-            MATCH (m:Meeting {id: $meeting_id})
-            MERGE (m)-[:PRODUCED]->(d)
-            """,
-            id=decision_id, desc=decision_text,
-            date=doc.get("date", ""), project=project,
-            meeting_id=meeting_id,
-        )
+    try:
+        await driver.verify_connectivity()
+        log.info("startup: Neo4j connectivity OK")
+    except Exception as exc:
+        # NOTE: this raises and CRASHES the container if Neo4j is unreachable — unlike
+        # the other services which self-heal. If graph-service keeps exiting, this is why.
+        log.error("startup: cannot connect to Neo4j at %s: %r", NEO4J_URI, exc)
+        raise RuntimeError(f"Unable to connect to Neo4j at {NEO4J_URI}: {exc}") from exc
 
 
-async def process_jira(session, doc: Dict[str, Any]):
-    ticket_id = doc["doc_id"]
-    project = doc.get("project") or "General"
-
-    await session.run(
-        """
-        MERGE (t:Ticket {id: $id})
-        SET t.title = $title, t.status = $status,
-            t.date = $date, t.project = $project
-        """,
-        id=ticket_id, title=doc.get("title", ""),
-        status=doc.get("status", ""), date=doc.get("date", ""), project=project,
-    )
-
-    await session.run(
-        """
-        MERGE (proj:Project {name: $project})
-        WITH proj
-        MATCH (t:Ticket {id: $ticket_id})
-        MERGE (t)-[:PART_OF]->(proj)
-        """,
-        project=project, ticket_id=ticket_id,
-    )
-
-    for person in doc.get("participants", []):
-        name = person.strip()
-        if not name:
-            continue
-        await session.run(
-            """
-            MERGE (p:Person {name: $name})
-            WITH p
-            MATCH (t:Ticket {id: $ticket_id})
-            MERGE (p)-[:INVOLVED_IN]->(t)
-            """,
-            name=name, ticket_id=ticket_id,
-        )
+@app.on_event("shutdown")
+async def shutdown():
+    global driver
+    if driver:
+        await driver.close()
 
 
-async def process_email(session, doc: Dict[str, Any]):
-    email_id = doc["doc_id"]
-    project = doc.get("project") or "General"
-
-    await session.run(
-        """
-        MERGE (e:Email {id: $id})
-        SET e.subject = $subject, e.date = $date, e.project = $project
-        """,
-        id=email_id, subject=doc.get("title", ""),
-        date=doc.get("date", ""), project=project,
-    )
-
-    for person in doc.get("participants", []):
-        name = person.strip()
-        if not name:
-            continue
-        await session.run(
-            """
-            MERGE (p:Person {name: $name})
-            WITH p
-            MATCH (em:Email {id: $email_id})
-            MERGE (p)-[:SENT_OR_RECEIVED]->(em)
-            """,
-            name=name, email_id=email_id,
-        )
+def normalize_participants(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [p.strip() for p in value.split(",") if p.strip()]
+    if isinstance(value, list):
+        return [str(p).strip() for p in value if str(p).strip()]
+    return [str(value).strip()]
 
 
-# ── Routes ─────────────────────────────────────────────────────
+async def run_cypher(query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    if driver is None:
+        raise RuntimeError("Neo4j driver is not initialized")
+
+    async with driver.session(database=NEO4J_DATABASE) as session:
+        result = await session.run(query, params or {})
+        records = await result.to_list()
+
+    rows = []
+    for record in records:
+        row = {}
+        for key, value in record.items():
+            if hasattr(value, "items"):
+                try:
+                    row[key] = dict(value)
+                except Exception:
+                    row[key] = str(value)
+            else:
+                row[key] = value
+        rows.append(row)
+    return rows
+
 
 @app.get("/health")
 async def health():
-    try:
-        await driver.verify_connectivity()
-        return {
-            "service": "graph-service",
-            "status": "healthy",
-            "neo4j_uri": NEO4J_URI,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Neo4j unavailable: {e}")
+    return {
+        "service": "graph-service",
+        "status": "healthy",
+        "ready": driver is not None,
+        "neo4j_uri": NEO4J_URI,
+    }
 
 
 @app.post("/build-graph")
 async def build_graph(request: BuildGraphRequest):
-    processed = 0
-    async with driver.session() as session:
-        for doc in request.documents:
-            doc_type = doc.get("doc_type", "")
-            try:
-                if doc_type == "meeting_notes":
-                    await process_meeting(session, doc)
-                elif doc_type == "jira_ticket":
-                    await process_jira(session, doc)
-                elif doc_type == "email":
-                    await process_email(session, doc)
-                processed += 1
-            except Exception as e:
-                print(f"Error processing {doc.get('doc_id')}: {e}")
+    query = """
+        MERGE (d:Document {id: })
+        SET d += 
+        WITH d,  AS project,  AS participants
+        FOREACH (_ IN CASE WHEN project IS NULL THEN [] ELSE [1] END |
+            MERGE (p:Project {name: project})
+            MERGE (d)-[:PART_OF]->(p)
+        )
+        FOREACH (person IN participants |
+            MERGE (person_node:Person {name: person})
+            MERGE (person_node)-[:INVOLVED_IN]->(d)
+        )
+    """
 
-    return {"processed": processed, "status": "success"}
+    async with driver.session(database=NEO4J_DATABASE) as session:
+        for document in request.documents:
+            props = {
+                k: document.get(k)
+                for k in ["title", "date", "project", "content", "doc_type", "tags"]
+                if document.get(k) is not None
+            }
+            participants = normalize_participants(document.get("participants") or document.get("attendees") or document.get("to"))
+            await session.execute_write(
+                lambda tx, doc_id=document.get("doc_id"), props=props, project=document.get("project"), participants=participants: tx.run(
+                    query,
+                    doc_id=doc_id,
+                    props=props,
+                    project=project,
+                    participants=participants,
+                )
+            )
+
+    return {"status": "ok", "documents_indexed": len(request.documents)}
 
 
 @app.get("/decisions")
 async def get_decisions(project: Optional[str] = None):
-    async with driver.session() as session:
-        if project:
-            result = await session.run(
-                "MATCH (d:Decision) WHERE d.project = $project RETURN d",
-                project=project,
-            )
-        else:
-            result = await session.run("MATCH (d:Decision) RETURN d LIMIT 100")
-        records = await result.data()
-    return {"decisions": [r["d"] for r in records]}
+    query = """
+        MATCH (d:Document)
+        WHERE toLower(coalesce(d.doc_type, '')) = 'decision'
+          AND ( IS NULL OR d.project = )
+        RETURN d
+        ORDER BY d.date
+    """
+    result = await run_cypher(query, {"project": project})
+    return {"decisions": [row.get("d") for row in result]}
 
 
-@app.get("/entities/{entity_name}")
-async def get_entity_graph(entity_name: str):
-    """Get all connections for a person or project."""
-    async with driver.session() as session:
-        result = await session.run(
-            """
-            MATCH (n {name: $name})-[r]-(m)
-            RETURN type(r) as rel, labels(m) as labels, m
-            LIMIT 50
-            """,
-            name=entity_name,
-        )
-        records = await result.data()
-    return {"entity": entity_name, "connections": records}
+@app.get("/entities/{name}")
+async def get_entity_connections(name: str):
+    query = """
+        MATCH (entity)-[r]-(other)
+        WHERE toLower(coalesce(entity.name, '')) = toLower()
+        RETURN labels(entity) AS entity_labels,
+               entity.name AS entity_name,
+               type(r) AS relationship,
+               labels(other) AS other_labels,
+               other AS other
+    """
+    result = await run_cypher(query, {"name": name})
+    connections = []
+    for row in result:
+        connections.append({
+            "entity": {"labels": row.get("entity_labels"), "name": row.get("entity_name")},
+            "relationship": row.get("relationship"),
+            "other": row.get("other"),
+        })
+    return {"connections": connections}
 
 
 @app.get("/project-timeline/{project}")
 async def project_timeline(project: str):
-    """All meetings + decisions for a project ordered by date."""
-    async with driver.session() as session:
-        result = await session.run(
-            """
-            MATCH (m:Meeting)-[:PART_OF]->(proj:Project {name: $project})
-            OPTIONAL MATCH (m)-[:PRODUCED]->(d:Decision)
-            RETURN m, collect(d) as decisions
-            ORDER BY m.date ASC
-            """,
-            project=project,
-        )
-        records = await result.data()
-    return {"project": project, "timeline": records}
+    query = """
+        MATCH (d:Document)
+        WHERE d.project = 
+        RETURN d.doc_type AS type,
+               d.title AS title,
+               d.date AS date,
+               d.content AS content,
+               d.project AS project
+        ORDER BY d.date
+    """
+    result = await run_cypher(query, {"project": project})
+    return {"events": result}
 
 
 @app.post("/query")
-async def run_cypher(request: GraphQueryRequest):
-    """Run a raw Cypher query (for advanced use)."""
-    async with driver.session() as session:
-        result = await session.run(request.cypher, **request.params)
-        records = await result.data()
-    return {"results": records}
+async def raw_query(request: CypherQuery):
+    try:
+        result = await run_cypher(request.query, request.params or {})
+        return {"results": result}
+    except Neo4jError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

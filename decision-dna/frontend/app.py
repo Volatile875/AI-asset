@@ -4,13 +4,21 @@ DecisionDNA — Streamlit UI
 The demo-ready frontend for the hackathon.
 """
 
+import logging
 import os
 import time
 
 import httpx
 import streamlit as st
 
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [frontend] %(message)s",
+)
+log = logging.getLogger("frontend")
+
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8000")
+log.info("frontend starting; GATEWAY_URL=%s", GATEWAY_URL)
 
 # ── Page Config ────────────────────────────────────────────────
 
@@ -130,19 +138,39 @@ with st.sidebar:
 # ── Helper Functions ───────────────────────────────────────────
 
 def call_gateway(path: str, method: str = "GET", payload: dict = None) -> dict:
+    url = f"{GATEWAY_URL}{path}"
+    start = time.perf_counter()
+    log.info("→ %s %s", method, url)
     try:
         with httpx.Client(timeout=90) as client:
-            url = f"{GATEWAY_URL}{path}"
             if method == "POST":
                 r = client.post(url, json=payload)
             else:
                 r = client.get(url)
+            dur = (time.perf_counter() - start) * 1000
+            log.info("← %s %s %s %.0fms", method, url, r.status_code, dur)
             r.raise_for_status()
             return r.json()
-    except httpx.ConnectError:
+    except httpx.ConnectError as e:
+        log.error("✗ %s %s connection refused: %r", method, url, e)
         st.error("❌ Cannot connect to API Gateway. Is docker-compose running?")
         return {}
+    except httpx.TimeoutException as e:
+        log.error("✗ %s %s timed out after %.0fms: %r", method, url, (time.perf_counter() - start) * 1000, e)
+        st.error("⏱️ Request timed out. The pipeline may still be running — check the query-service logs.")
+        return {}
+    except httpx.HTTPStatusError as e:
+        # Surface the gateway's error detail (now populated by the hardened proxy) to the UI.
+        detail = ""
+        try:
+            detail = e.response.json().get("detail", "")
+        except Exception:
+            detail = e.response.text[:300]
+        log.error("✗ %s %s → HTTP %s: %s", method, url, e.response.status_code, detail)
+        st.error(f"Error {e.response.status_code}: {detail or e}")
+        return {}
     except Exception as e:
+        log.exception("✗ %s %s unexpected error", method, url)
         st.error(f"Error: {e}")
         return {}
 

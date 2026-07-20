@@ -134,7 +134,7 @@ Paste this, fill in the three real keys, then **save**:
 
 ```env
 # --- SECRETS (fill these in) ---
-ANTHROPIC_API_KEY=your-anthropic-key
+OPENAI_API_KEY=your-openai-key
 OPENAI_API_KEY=your-openai-key
 PINECONE_API_KEY=your-pinecone-key
 
