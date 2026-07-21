@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN cat /usr/local/share/ca-certificates/corp-ca.crt >> "$(python -c 'import certifi; print(certifi.where())')"
 COPY . .
 EXPOSE 8003
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload"]
+CMD ["uvicorn", "app.graph_services_main:app", "--host", "0.0.0.0", "--port", "8003", "--reload"]

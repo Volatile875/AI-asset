@@ -99,7 +99,9 @@ async def run_cypher(query: str, params: Optional[Dict[str, Any]] = None) -> Lis
 
     async with driver.session(database=NEO4J_DATABASE) as session:
         result = await session.run(query, params or {})
-        records = await result.to_list()
+        records = []
+        async for record in result:
+            records.append(record)
 
     rows = []
     for record in records:
