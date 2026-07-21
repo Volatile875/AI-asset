@@ -136,7 +136,11 @@ async def _fetch(session, cypher: str, **params) -> List[Dict[str, Any]]:
     result = await session.run(cypher, **params)
     records = []
     async for record in result:
-        records.append(record)
+        # Convert each neo4j.Record to a plain dict. A raw Record is
+        # list-like, so it would JSON-serialize as an array of values and
+        # break dict-style access (`.get(...)`) on the client. `.data()`
+        # also unwraps Node/Relationship values into their property dicts.
+        records.append(record.data())
     return records
 
 
