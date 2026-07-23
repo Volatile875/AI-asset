@@ -162,6 +162,7 @@ class AgentState(TypedDict):
     sources: List[Dict[str, Any]]
     confidence_score: float
     processing_steps: List[str]
+    embeddings_degraded: bool  # True = query embedded with local fallback vectors (OpenAI unavailable)
 
 
 # ── Agent 1: Planner ───────────────────────────────────────────
@@ -223,6 +224,7 @@ def search_agent(state: AgentState) -> AgentState:
             print(f"[query-service] Embedding failed ({type(embed_err).__name__}), using fallback embeddings", flush=True)
             embeddings_model_local = FallbackEmbeddings(dimensions=EMBEDDING_DIM)
             query_vector = embeddings_model_local.embed_query(task)
+            state["embeddings_degraded"] = True
 
         # Build filter
         filter_dict = {}
@@ -469,6 +471,7 @@ async def health():
         "service": "query-service",
         "status": "healthy",
         "ready": pc_index is not None,  # False until Pinecone/OpenAI init succeeds
+        "degraded": isinstance(embeddings_model, FallbackEmbeddings) or isinstance(pc_index, FallbackIndex),
         "pinecone_index": INDEX_NAME,
         "chat_model": CHAT_MODEL,
         "embedding_model": EMBEDDING_MODEL,
@@ -496,6 +499,7 @@ async def query(request: QueryRequest):
         "sources": [],
         "confidence_score": 0.0,
         "processing_steps": [],
+        "embeddings_degraded": False,
     }
 
     log.info("pipeline start: q=%r project_filter=%r", request.question[:120], request.project_filter)
@@ -517,4 +521,5 @@ async def query(request: QueryRequest):
         "sources": result["sources"],
         "confidence_score": result["confidence_score"],
         "processing_steps": result["processing_steps"],
+        "degraded": result.get("embeddings_degraded", False),
     }

@@ -131,6 +131,7 @@ class EmbedBatchResponse(BaseModel):
     embedded_count: int
     chunk_count: int
     status: str
+    degraded: bool = False  # True = embedded with local fallback vectors (OpenAI unavailable)
 
 
 # ── Core Logic ─────────────────────────────────────────────────
@@ -167,6 +168,29 @@ def chunk_document(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
     return chunks
 
 
+def _embed_texts(texts: List[str]) -> List[List[float]]:
+    """Embed texts, degrading to local FallbackEmbeddings if the provider call fails.
+
+    OpenAIEmbeddings' constructor never makes a network call, so a bad key or an
+    exhausted quota (HTTP 429 insufficient_quota) only surfaces here, at call time.
+    When that happens we permanently swap the process over to FallbackEmbeddings so
+    the whole ingest run stays in one vector space rather than mixing real + local.
+    """
+    global embeddings_model
+    try:
+        return embeddings_model.embed_documents(texts)
+    except Exception as exc:
+        if isinstance(embeddings_model, FallbackEmbeddings):
+            raise  # fallback itself failed — nothing left to try
+        log.warning(
+            "Embedding provider call failed (%s: %s); switching to local FallbackEmbeddings "
+            "for the rest of this process. Retrieval quality will be degraded.",
+            type(exc).__name__, exc,
+        )
+        embeddings_model = FallbackEmbeddings(dimensions=EMBEDDING_DIM)
+        return embeddings_model.embed_documents(texts)
+
+
 async def embed_and_upsert(chunks: List[Dict[str, Any]]):
     """Generate embeddings and upsert to Pinecone in batches of 100."""
     BATCH_SIZE = 100
@@ -175,8 +199,8 @@ async def embed_and_upsert(chunks: List[Dict[str, Any]]):
         batch = chunks[i : i + BATCH_SIZE]
         texts = [c["content"] for c in batch]
 
-        # Generate embeddings
-        vectors = embeddings_model.embed_documents(texts)
+        # Generate embeddings (degrades to local vectors if the provider is down)
+        vectors = _embed_texts(texts)
 
         # Prepare Pinecone upsert payload
         upsert_data = [
@@ -189,12 +213,18 @@ async def embed_and_upsert(chunks: List[Dict[str, Any]]):
 
 # ── Routes ─────────────────────────────────────────────────────
 
+def _is_degraded() -> bool:
+    """True when either the embedder or the index has fallen back to a local stub."""
+    return isinstance(embeddings_model, FallbackEmbeddings) or isinstance(index, FallbackIndex)
+
+
 @app.get("/health")
 async def health():
     return {
         "service": "embedding-service",
         "status": "healthy",
         "ready": index is not None,  # False until Pinecone/OpenAI init succeeds
+        "degraded": _is_degraded(),  # True = running on local fallback vectors, not real embeddings
         "pinecone_index": INDEX_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
@@ -220,6 +250,7 @@ async def embed_batch(request: EmbedBatchRequest):
         embedded_count=len(request.documents),
         chunk_count=len(all_chunks),
         status="success",
+        degraded=_is_degraded(),
     )
 
 

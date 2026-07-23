@@ -268,6 +268,14 @@ if page == "🔍 Ask DecisionDNA":
             </div>
             """, unsafe_allow_html=True)
 
+            if result.get("degraded"):
+                st.warning(
+                    "⚠️ **Degraded mode:** OpenAI embeddings were unavailable, so this answer "
+                    "used local fallback (keyword-based) vectors. Retrieval quality and the "
+                    "confidence score below are lower than with real embeddings. Restore a "
+                    "funded `OPENAI_API_KEY` and re-ingest for full semantic search."
+                )
+
             render_confidence(result.get("confidence_score", 0.0))
 
             col_left, col_right = st.columns([3, 2])
