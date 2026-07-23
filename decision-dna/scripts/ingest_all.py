@@ -41,32 +41,37 @@ def preflight():
     data = resp.json()
     openai_res = data.get("openai", {})
     pinecone_res = data.get("pinecone", {})
-    ok = True
 
+    openai_ok = True
     if openai_res.get("ok"):
         print("  ✅ OpenAI embeddings: reachable")
     else:
-        ok = False
-        print(f"  ❌ OpenAI embeddings: {openai_res.get('error')}")
+        openai_ok = False
+        print(f"  ⚠️ OpenAI embeddings: degraded ({openai_res.get('error')})")
+        print("     Will use local FallbackEmbeddings (hash-based vectors) into the real Pinecone index.")
 
+    pinecone_ok = True
     if pinecone_res.get("ok"):
         print(f"  ✅ Pinecone: index '{pinecone_res.get('index')}' "
               f"reachable (dim={pinecone_res.get('dimension')})")
     else:
-        ok = False
+        pinecone_ok = False
         print(f"  ❌ Pinecone: {pinecone_res.get('error')}")
 
-    if not ok:
+    if not pinecone_ok:
         print()
         print("🛑 Aborting BEFORE ingest.")
-        print("   With an invalid key, embedding falls back to a per-process in-memory index")
+        print("   With an invalid Pinecone key, embedding falls back to a per-process in-memory index")
         print("   that query-service cannot read — ingest would 'succeed' but every query")
         print("   returns 0 chunks / 0% confidence.")
-        print("   Fix the failing key in decision-dna/.env, rebuild that service")
+        print("   Fix the failing Pinecone key in decision-dna/.env, rebuild that service")
         print("   (`docker-compose up --build embedding-service query-service`), then re-run.")
         sys.exit(1)
 
-    print("  ✅ All credentials valid — proceeding.\n")
+    if not openai_ok:
+        print("  ⚠️ Proceeding in degraded mode (using local FallbackEmbeddings).\n")
+    else:
+        print("  ✅ All credentials valid — proceeding.\n")
 
 
 def check_health():

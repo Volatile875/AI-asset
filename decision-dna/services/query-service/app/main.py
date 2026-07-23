@@ -105,6 +105,7 @@ def init_clients() -> bool:
 
 
 def generate_text(prompt: str, max_tokens: int) -> str:
+    global openai_client
     if openai_client is None:
         raise RuntimeError("OpenAI client is not initialized")
 
@@ -126,19 +127,35 @@ def generate_text(prompt: str, max_tokens: int) -> str:
 
         return response.choices[0].message.content or ""
 
-    except OpenAIError as e:
-        print(f"[OpenAI ERROR] {e}", flush=True)
-        raise HTTPException(
-            status_code=502,
-            detail=f"OpenAI API Error: {str(e)}"
-        )
-
     except Exception as e:
-        print(f"[generate_text ERROR] {e}", flush=True)
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        if isinstance(openai_client, FallbackOpenAIClient):
+            print(f"[query-service] Fallback OpenAI client failed: {e}", flush=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Fallback client error: {str(e)}"
+            )
+        
+        print(f"[query-service] Chat provider call failed ({type(e).__name__}: {e}); switching to local FallbackOpenAIClient", flush=True)
+        openai_client = FallbackOpenAIClient()
+        try:
+            response = openai_client.chat.completions.create(
+                model=CHAT_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=max_tokens,
+                temperature=0.3
+            )
+            return response.choices[0].message.content or ""
+        except Exception as fallback_err:
+            print(f"[query-service] Fallback client failed on retry: {fallback_err}", flush=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Local fallback client failed: {str(fallback_err)}"
+            )
 
 
 @app.on_event("startup")
