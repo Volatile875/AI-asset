@@ -162,6 +162,12 @@ SENTIMENT_ICONS = {
 
 def search_pinecone(topic: str, project: str = "", top_k: int = 20) -> List[Dict]:
     global embeddings_model
+    # Defensive: callers (build_timeline) init first, but don't trust globals blindly.
+    # This also narrows the Optional types for the type checker.
+    if embeddings_model is None or pc_index is None:
+        init_clients()
+    if embeddings_model is None or pc_index is None:
+        raise RuntimeError("Timeline search unavailable: Pinecone/embedding clients not initialized")
     try:
         query_vector = embeddings_model.embed_query(topic)
     except Exception as embed_err:
