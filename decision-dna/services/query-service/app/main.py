@@ -22,6 +22,9 @@ from pinecone import Pinecone
 from pydantic import BaseModel
 from openai import OpenAIError
 
+from app.fallbacks import FallbackEmbeddings, FallbackIndex, FallbackOpenAIClient
+from app.provider_config import resolve_provider_config
+
 # ── Logging ────────────────────────────────────────────────────
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -52,14 +55,15 @@ async def trace_requests(request: Request, call_next):
     return response
 
 # ── Config ─────────────────────────────────────────────────────
-OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
-PINECONE_API_KEY  = os.getenv("PINECONE_API_KEY")
-INDEX_NAME        = os.getenv("PINECONE_INDEX_NAME", "ai-asset")
-CHAT_MODEL        = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-EMBEDDING_MODEL   = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
-EMBEDDING_DIM     = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
-TIMELINE_URL      = os.getenv("TIMELINE_SERVICE_URL", "http://timeline-service:8005")
-GRAPH_URL         = os.getenv("GRAPH_SERVICE_URL",    "http://graph-service:8003")
+PROVIDER_CONFIG = resolve_provider_config()
+OPENAI_API_KEY = PROVIDER_CONFIG["chat_api_key"]  # For legacy config references
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "ai-asset")
+CHAT_MODEL = PROVIDER_CONFIG["chat_model"]
+EMBEDDING_MODEL = PROVIDER_CONFIG["embedding_model"]
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
+TIMELINE_URL = os.getenv("TIMELINE_SERVICE_URL", "http://timeline-service:8005")
+GRAPH_URL = os.getenv("GRAPH_SERVICE_URL", "http://graph-service:8003")
 
 openai_client = None
 embeddings_model = None
@@ -67,23 +71,33 @@ pc_index = None
 
 
 def init_clients() -> bool:
-    """Lazily (re)initialize external clients. Idempotent and never raises, so a
-    transient Pinecone/OpenAI failure can't crash startup or leave the service
-    permanently unreachable — it retries on the next call and self-heals.
-    Returns True once all clients are ready."""
+    """Initialize external clients when possible, but fall back to local stubs if credentials are unavailable."""
     global openai_client, embeddings_model, pc_index
     try:
         if openai_client is None:
-            openai_client = OpenAI(api_key=OPENAI_API_KEY)
+            try:
+                openai_client = OpenAI(api_key=PROVIDER_CONFIG["chat_api_key"], base_url=PROVIDER_CONFIG["chat_base_url"])
+            except Exception as exc:
+                print(f"[query-service] OpenAI init failed, using fallback client: {exc}", flush=True)
+                openai_client = FallbackOpenAIClient()
         if embeddings_model is None:
-            embeddings_model = OpenAIEmbeddings(
-                model=EMBEDDING_MODEL,
-                dimensions=EMBEDDING_DIM,
-                openai_api_key=OPENAI_API_KEY,
-            )
+            try:
+                embeddings_model = OpenAIEmbeddings(
+                    model=EMBEDDING_MODEL,
+                    dimensions=EMBEDDING_DIM,
+                    openai_api_key=PROVIDER_CONFIG["embedding_api_key"],
+                    base_url=PROVIDER_CONFIG["embedding_base_url"],
+                )
+            except Exception as exc:
+                print(f"[query-service] OpenAI embeddings init failed, using fallback embeddings: {exc}", flush=True)
+                embeddings_model = FallbackEmbeddings(dimensions=EMBEDDING_DIM)
         if pc_index is None:
-            pc = Pinecone(api_key=PINECONE_API_KEY)
-            pc_index = pc.Index(INDEX_NAME)
+            try:
+                pc = Pinecone(api_key=PINECONE_API_KEY)
+                pc_index = pc.Index(INDEX_NAME)
+            except Exception as exc:
+                print(f"[query-service] Pinecone init failed, using fallback index: {exc}", flush=True)
+                pc_index = FallbackIndex()
         return True
     except Exception as e:
         print(f"[query-service] client init failed (will retry on demand): {e}", flush=True)
@@ -202,7 +216,13 @@ def search_agent(state: AgentState) -> AgentState:
 
     for task in state["sub_tasks"]:
         # Embed the sub-task query
-        query_vector = embeddings_model_local.embed_query(task)
+        try:
+            query_vector = embeddings_model_local.embed_query(task)
+        except Exception as embed_err:
+            # If embedding fails (rate limit, auth error, etc.), fall back to stub embeddings
+            print(f"[query-service] Embedding failed ({type(embed_err).__name__}), using fallback embeddings", flush=True)
+            embeddings_model_local = FallbackEmbeddings(dimensions=EMBEDDING_DIM)
+            query_vector = embeddings_model_local.embed_query(task)
 
         # Build filter
         filter_dict = {}
@@ -453,6 +473,7 @@ async def health():
         "chat_model": CHAT_MODEL,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
+        "provider": PROVIDER_CONFIG["provider"],
     }
 
 

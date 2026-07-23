@@ -14,6 +14,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone, ServerlessSpec
 
+from app.fallbacks import FallbackEmbeddings, FallbackIndex
+from app.provider_config import resolve_provider_config
+
 import logging
 import time
 import uuid
@@ -45,12 +48,13 @@ async def trace_requests(request, call_next):
     return response
 
 # ── Config ─────────────────────────────────────────────────────
-OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
-PINECONE_API_KEY  = os.getenv("PINECONE_API_KEY")
-PINECONE_ENV      = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
-INDEX_NAME        = os.getenv("PINECONE_INDEX_NAME", "ai-asset")
-EMBEDDING_MODEL   = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
-EMBEDDING_DIM     = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
+PROVIDER_CONFIG = resolve_provider_config()
+OPENAI_API_KEY = PROVIDER_CONFIG["embedding_api_key"]  # For legacy config references
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_ENV = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
+INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "ai-asset")
+EMBEDDING_MODEL = PROVIDER_CONFIG["embedding_model"]
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
 
 pc = None
 index = None
@@ -59,13 +63,9 @@ text_splitter = None
 
 
 def init_clients() -> bool:
-    """Lazily (re)initialize external clients. Idempotent and never raises, so a
-    transient Pinecone/OpenAI failure can't crash startup or leave the service
-    permanently unreachable — it retries on the next call and self-heals.
-    Returns True once all clients are ready."""
+    """Initialize external clients when possible, but fall back to local stubs if credentials are unavailable."""
     global pc, index, embeddings_model, text_splitter
     try:
-        # Chunker + embedding model don't need the network to construct.
         if text_splitter is None:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=800,
@@ -73,33 +73,41 @@ def init_clients() -> bool:
                 separators=["\n\n", "\n", ". ", " ", ""],
             )
         if embeddings_model is None:
-            embeddings_model = OpenAIEmbeddings(
-                model=EMBEDDING_MODEL,
-                dimensions=EMBEDDING_DIM,
-                openai_api_key=OPENAI_API_KEY,
-            )
-        # Pinecone: create the index if missing; warn (don't crash) on dim mismatch.
-        if index is None:
-            pc = Pinecone(api_key=PINECONE_API_KEY)
-            existing = [i.name for i in pc.list_indexes()]
-            if INDEX_NAME not in existing:
-                pc.create_index(
-                    name=INDEX_NAME,
-                    dimension=EMBEDDING_DIM,
-                    metric="cosine",
-                    spec=ServerlessSpec(cloud="aws", region=PINECONE_ENV),
+            try:
+                embeddings_model = OpenAIEmbeddings(
+                    model=EMBEDDING_MODEL,
+                    dimensions=EMBEDDING_DIM,
+                    openai_api_key=PROVIDER_CONFIG["embedding_api_key"],
+                    base_url=PROVIDER_CONFIG["embedding_base_url"],
                 )
-            else:
-                index_description = pc.describe_index(INDEX_NAME)
-                actual_dimension = getattr(index_description, "dimension", None)
-                if actual_dimension and actual_dimension != EMBEDDING_DIM:
-                    print(
-                        f"[embedding-service] WARNING: index '{INDEX_NAME}' has dimension "
-                        f"{actual_dimension} but EMBEDDING_DIMENSIONS is {EMBEDDING_DIM}; "
-                        f"upserts will fail until this is reconciled.",
-                        flush=True,
+            except Exception as exc:
+                print(f"[embedding-service] OpenAI init failed, using fallback embeddings: {exc}", flush=True)
+                embeddings_model = FallbackEmbeddings(dimensions=EMBEDDING_DIM)
+        if index is None:
+            try:
+                pc = Pinecone(api_key=PINECONE_API_KEY)
+                existing = [i.name for i in pc.list_indexes()]
+                if INDEX_NAME not in existing:
+                    pc.create_index(
+                        name=INDEX_NAME,
+                        dimension=EMBEDDING_DIM,
+                        metric="cosine",
+                        spec=ServerlessSpec(cloud="aws", region=PINECONE_ENV),
                     )
-            index = pc.Index(INDEX_NAME)
+                else:
+                    index_description = pc.describe_index(INDEX_NAME)
+                    actual_dimension = getattr(index_description, "dimension", None)
+                    if actual_dimension and actual_dimension != EMBEDDING_DIM:
+                        print(
+                            f"[embedding-service] WARNING: index '{INDEX_NAME}' has dimension "
+                            f"{actual_dimension} but EMBEDDING_DIMENSIONS is {EMBEDDING_DIM}; "
+                            f"upserts will fail until this is reconciled.",
+                            flush=True,
+                        )
+                index = pc.Index(INDEX_NAME)
+            except Exception as exc:
+                print(f"[embedding-service] Pinecone init failed, using fallback index: {exc}", flush=True)
+                index = FallbackIndex()
         return True
     except Exception as e:
         print(f"[embedding-service] client init failed (will retry on demand): {e}", flush=True)
@@ -190,6 +198,7 @@ async def health():
         "pinecone_index": INDEX_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIM,
+        "provider": PROVIDER_CONFIG["provider"],
     }
 
 

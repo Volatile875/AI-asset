@@ -189,7 +189,10 @@ if (-not (Test-Path ".\.env")) {
 OPENAI_API_KEY=your-openai-key
 PINECONE_API_KEY=your-pinecone-key
 
-# --- OpenAI chat model for query-service ---
+# --- LLM provider (Groq is preferred; OpenAI is still supported) ---
+GROQ_API_KEY=your-groq-key
+GROQ_CHAT_MODEL=llama-3.3-70b-versatile
+GROQ_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_CHAT_MODEL=gpt-4o-mini
 
 # --- Pinecone (an index with this exact name + dimension must already exist) ---
@@ -354,6 +357,7 @@ if ($problems.Count -eq 0 -and $uiOk) {
     Write-Host "==================================================================" -ForegroundColor Magenta
     if ($placeholderKeys) {
         Write-Host "  .env still has PLACEHOLDER keys. That's the most likely cause." -ForegroundColor Yellow
+    Write-Host "  Groq is preferred when GROQ_API_KEY is set; otherwise the services fall back to OpenAI-compatible config." -ForegroundColor Yellow
     }
     Write-Host "  If a Pinecone-backed service is UP but NOT READY:" -ForegroundColor Yellow
     Write-Host "    1. Put real OPENAI / PINECONE keys in .env"
