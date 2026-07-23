@@ -269,3 +269,55 @@ async def index_stats():
         raise HTTPException(status_code=503, detail="Upstream (Pinecone/OpenAI) not ready - check API keys and that the index exists")
     stats = index.describe_index_stats()
     return {"total_vectors": stats.total_vector_count, "index": INDEX_NAME}
+
+
+@app.get("/selftest")
+async def selftest():
+    """Actively verify OpenAI + Pinecone credentials with fresh clients.
+
+    /health only reflects init-time state, and the OpenAI quota error surfaces
+    only on a real embed call (the constructor never hits the network). This
+    route does a genuine 1-string embed and a real Pinecone describe so a bad
+    key is caught BEFORE a full ingest silently lands in the throwaway
+    in-memory FallbackIndex that query-service can never read.
+    """
+    result: Dict[str, Any] = {
+        "openai": {"ok": False, "error": None},
+        "pinecone": {"ok": False, "error": None, "index": INDEX_NAME,
+                     "dimension": None, "expected_dimension": EMBEDDING_DIM},
+    }
+
+    # OpenAI: real minimal embedding via a fresh client (not the possibly-swapped global)
+    try:
+        probe = OpenAIEmbeddings(
+            model=EMBEDDING_MODEL,
+            dimensions=EMBEDDING_DIM,
+            openai_api_key=PROVIDER_CONFIG["embedding_api_key"],
+            base_url=PROVIDER_CONFIG["embedding_base_url"],
+        )
+        vector = probe.embed_query("preflight")
+        result["openai"]["ok"] = bool(vector)
+    except Exception as exc:
+        result["openai"]["error"] = f"{type(exc).__name__}: {str(exc)[:300]}"
+
+    # Pinecone: real describe via a fresh client; verify the index exists at the right dim
+    try:
+        probe_pc = Pinecone(api_key=PINECONE_API_KEY)
+        names = [i.name for i in probe_pc.list_indexes()]
+        if INDEX_NAME not in names:
+            result["pinecone"]["error"] = f"index '{INDEX_NAME}' not found (available: {names})"
+        else:
+            desc = probe_pc.describe_index(INDEX_NAME)
+            dim = getattr(desc, "dimension", None)
+            result["pinecone"]["dimension"] = dim
+            if dim is not None and dim != EMBEDDING_DIM:
+                result["pinecone"]["error"] = (
+                    f"index dimension {dim} != EMBEDDING_DIMENSIONS {EMBEDDING_DIM}; upserts will fail"
+                )
+            else:
+                result["pinecone"]["ok"] = True
+    except Exception as exc:
+        result["pinecone"]["error"] = f"{type(exc).__name__}: {str(exc)[:300]}"
+
+    result["ok"] = result["openai"]["ok"] and result["pinecone"]["ok"]
+    return result
