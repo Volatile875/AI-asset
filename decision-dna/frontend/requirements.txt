@@ -1,7 +1,0 @@
-
-# frontend/requirements.txt  — DecisionDNA Enterprise Dashboard
-streamlit==1.35.0
-httpx==0.27.0
-python-dotenv==1.0.1
-pyvis==0.3.2          # Interactive graph visualization
-networkx==3.3          # Graph data structure (pyvis dependency)

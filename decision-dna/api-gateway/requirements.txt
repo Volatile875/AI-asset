@@ -6,3 +6,7 @@ pydantic==2.7.1
 pydantic-settings==2.2.1
 python-dotenv==1.0.1
 scalar-fastapi==1.0.0
+psycopg2-binary==2.9.9
+pyjwt==2.8.0
+bcrypt==4.1.2
+

@@ -13,6 +13,11 @@ from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
+import psycopg2
+import bcrypt
+import jwt
+from datetime import datetime, timedelta
+from pydantic import BaseModel
 
 # ── Logging ────────────────────────────────────────────────────
 logging.basicConfig(
@@ -77,11 +82,117 @@ SERVICES = {
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 redis_client = None
 
+# ── PostgreSQL Authentication Config ──────────────────────────
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "host.docker.internal")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "asset")
+SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key_change_in_production")
+
+def get_db_conn():
+    try:
+        return psycopg2.connect(
+            host=POSTGRES_HOST,
+            port=POSTGRES_PORT,
+            user=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+            database=POSTGRES_DB
+        )
+    except psycopg2.OperationalError as e:
+        if "database" in str(e) and "does not exist" in str(e):
+            log.warning("Database '%s' not found. Falling back to default 'postgres' database.", POSTGRES_DB)
+            return psycopg2.connect(
+                host=POSTGRES_HOST,
+                port=POSTGRES_PORT,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                database="postgres"
+            )
+        raise
+
+def init_postgres():
+    log.info("Initializing PostgreSQL schema at host=%s db=%s...", POSTGRES_HOST, POSTGRES_DB)
+    conn = None
+    try:
+        conn = get_db_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    username VARCHAR(255) PRIMARY KEY,
+                    team_name VARCHAR(255) NOT NULL,
+                    reporting_manager VARCHAR(255) NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS jwt_tokens (
+                    token TEXT PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                );
+            """)
+            conn.commit()
+        log.info("PostgreSQL schema successfully initialized.")
+    except Exception as e:
+        log.error("Failed to initialize PostgreSQL: %s. Running with local signature verification.", e)
+    finally:
+        if conn:
+            conn.close()
+
+async def verify_jwt(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
+    token = auth_header.split(" ")[1]
+    
+    try:
+        # Check in PostgreSQL if token is active
+        conn = get_db_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT username, expires_at FROM jwt_tokens WHERE token = %s", (token,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=401, detail="Token revoked or invalid")
+            username, expires_at = row
+            if expires_at < datetime.utcnow():
+                raise HTTPException(status_code=401, detail="Token has expired")
+        conn.close()
+        
+        # Verify JWT payload
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token signature expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        log.warning("PostgreSQL verification query failed (falling back to stateless verify): %s", e)
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            return payload
+        except Exception:
+            raise HTTPException(status_code=401, detail="Authentication failed")
+
+class SignupPayload(BaseModel):
+    username: str
+    team_name: str
+    reporting_manager: str
+    password: str
+
+class LoginPayload(BaseModel):
+    username: str
+    password: str
+
 
 @app.on_event("startup")
 async def startup():
     global redis_client
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    init_postgres()
 
 
 @app.on_event("shutdown")
@@ -173,38 +284,121 @@ async def gateway_health():
     return {"gateway": "healthy", "services": statuses, "timestamp": time.time()}
 
 
+# Authentication endpoints
+@app.post("/api/v1/auth/signup")
+async def signup(payload: SignupPayload):
+    username = payload.username.strip()
+    team_name = payload.team_name.strip()
+    reporting_manager = payload.reporting_manager.strip()
+    password = payload.password
+    
+    if not username or not team_name or not reporting_manager or not password:
+        raise HTTPException(status_code=400, detail="All fields are required")
+        
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    
+    try:
+        conn = get_db_conn()
+        with conn.cursor() as cur:
+            # Check if user exists
+            cur.execute("SELECT username FROM users WHERE username = %s", (username,))
+            if cur.fetchone():
+                raise HTTPException(status_code=400, detail="Username already exists")
+            
+            # Insert user
+            cur.execute(
+                "INSERT INTO users (username, team_name, reporting_manager, password_hash) VALUES (%s, %s, %s, %s)",
+                (username, team_name, reporting_manager, password_hash)
+            )
+            conn.commit()
+        conn.close()
+        return {"status": "success", "message": "User registered successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("Signup DB error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database error during signup: {e}")
+
+@app.post("/api/v1/auth/login")
+async def login(payload: LoginPayload):
+    username = payload.username.strip()
+    password = payload.password
+    
+    try:
+        conn = get_db_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT password_hash, team_name, reporting_manager FROM users WHERE username = %s", (username,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+            password_hash, team_name, reporting_manager = row
+            
+            if not bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8")):
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+                
+            # Create JWT token
+            expires_at = datetime.utcnow() + timedelta(hours=24)
+            token_payload = {
+                "sub": username,
+                "team_name": team_name,
+                "reporting_manager": reporting_manager,
+                "exp": expires_at
+            }
+            token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+            
+            # Store token in DB
+            cur.execute(
+                "INSERT INTO jwt_tokens (token, username, expires_at) VALUES (%s, %s, %s)",
+                (token, username, expires_at)
+            )
+            conn.commit()
+        conn.close()
+        return {
+            "status": "success",
+            "token": token,
+            "username": username,
+            "team_name": team_name,
+            "reporting_manager": reporting_manager
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("Login DB error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database error during login: {e}")
+
+
 # Ingestion routes
-@app.post("/api/v1/ingest", dependencies=[Depends(rate_limit)])
+@app.post("/api/v1/ingest", dependencies=[Depends(rate_limit), Depends(verify_jwt)])
 async def ingest_documents(request: Request):
     body = await request.json()
     return await proxy("ingestion", "/ingest", "POST", body)
 
 
-@app.get("/api/v1/ingest/status/{job_id}", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/ingest/status/{job_id}", dependencies=[Depends(rate_limit), Depends(verify_jwt)])
 async def ingestion_status(job_id: str):
     return await proxy("ingestion", f"/status/{job_id}", "GET")
 
 
 # Query routes
-@app.post("/api/v1/query", dependencies=[Depends(rate_limit)])
+@app.post("/api/v1/query", dependencies=[Depends(rate_limit), Depends(verify_jwt)])
 async def query(request: Request):
     body = await request.json()
     return await proxy("query", "/query", "POST", body)
 
 
 # Timeline routes
-@app.get("/api/v1/timeline/{topic}", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/timeline/{topic}", dependencies=[Depends(rate_limit), Depends(verify_jwt)])
 async def get_timeline(topic: str):
     return await proxy("timeline", f"/timeline/{topic}", "GET")
 
 
 # Graph routes
-@app.get("/api/v1/graph/decisions", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/graph/decisions", dependencies=[Depends(rate_limit), Depends(verify_jwt)])
 async def get_decisions(project: str = None):
     return await proxy("graph", "/decisions", "GET", params={"project": project})
 
 
-@app.get("/api/v1/graph/entities/{entity}", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/graph/entities/{entity}", dependencies=[Depends(rate_limit), Depends(verify_jwt)])
 async def get_entity(entity: str):
     return await proxy("graph", f"/entities/{entity}", "GET")
 
