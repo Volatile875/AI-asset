@@ -16,3 +16,5 @@ logs/
 
 .cypher/
 
+node_modules/
+dist/
