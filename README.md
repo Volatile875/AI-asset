@@ -1,17 +1,4 @@
 # AI-asset
-
-decision-dna/
-├── api-gateway/          ← PORT 8000 — Central router + rate limiter
-├── services/
-│   ├── ingestion-service/  ← PORT 8001 — Parses emails/meetings/Jira
-│   ├── embedding-service/  ← PORT 8002 — Chunks + embeds → Pinecone
-│   ├── graph-service/      ← PORT 8003 — Neo4j knowledge graph
-│   ├── query-service/      ← PORT 8004 — LangGraph 5-agent brain ⭐
-│   └── timeline-service/   ← PORT 8005 — Decision timeline builder ⭐
-├── shared/               ← Pydantic models, config, utils (shared by all)
-├── frontend/             ← Streamlit UI (5 pages)
-├── scripts/              ← generate_data.py + ingest_all.py
-└── docker-compose.yml    ← One command to run everything
 # 🧬 DecisionDNA — AI Organizational Memory Engine
 
 > *"Why did we reject Vendor X? Who raised the security concern? What decisions led to this bug?"*
