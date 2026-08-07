@@ -8,10 +8,16 @@ import os
 import time
 import uuid
 import logging
+from datetime import datetime, timedelta, timezone
+import asyncio
+import asyncpg
+import bcrypt
+import jwt
 import httpx
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import redis.asyncio as redis
 
 # ── Logging ────────────────────────────────────────────────────
@@ -77,17 +83,73 @@ SERVICES = {
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 redis_client = None
 
+# ── Postgres (user accounts) ──────────────────────────────────
+# Not containerized — connects out to the native Postgres instance running
+# on the host (see pgAdmin server "Auth-AI/asset"). host.docker.internal is
+# Docker Desktop's DNS name for the host machine from inside a container.
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "host.docker.internal")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
+POSTGRES_DB = os.getenv("POSTGRES_DB", "postgres")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
+
+db_pool: asyncpg.Pool | None = None
+
+SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS users (
+    username TEXT PRIMARY KEY,
+    password_hash TEXT NOT NULL,
+    team_name TEXT NOT NULL,
+    reporting_manager TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+"""
+
+# ── JWT ────────────────────────────────────────────────────────
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRY_DAYS = 7
+
+
+async def connect_postgres_with_retry(attempts: int = 5, delay_s: float = 2.0) -> asyncpg.Pool:
+    """Postgres can still be finishing startup even after compose's healthcheck
+    passes (e.g. on a cold volume). Retry briefly instead of crash-looping."""
+    last_err = None
+    for attempt in range(1, attempts + 1):
+        try:
+            pool = await asyncpg.create_pool(
+                host=POSTGRES_HOST, port=POSTGRES_PORT, database=POSTGRES_DB,
+                user=POSTGRES_USER, password=POSTGRES_PASSWORD,
+                min_size=1, max_size=10,
+            )
+            async with pool.acquire() as conn:
+                await conn.execute(SCHEMA_SQL)
+            return pool
+        except Exception as e:  # noqa: BLE001 - want to retry on any connect/DDL failure
+            last_err = e
+            log.warning("postgres connect attempt %d/%d failed: %r", attempt, attempts, e)
+            await asyncio.sleep(delay_s)
+    raise RuntimeError(f"Could not connect to Postgres after {attempts} attempts: {last_err}")
+
 
 @app.on_event("startup")
 async def startup():
-    global redis_client
+    global redis_client, db_pool
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        db_pool = await connect_postgres_with_retry()
+        log.info("postgres: connected, schema ensured")
+    except Exception:
+        log.exception("postgres: failed to connect at startup; auth routes will 503 until it recovers")
+        db_pool = None
 
 
 @app.on_event("shutdown")
 async def shutdown():
     if redis_client:
         await redis_client.close()
+    if db_pool:
+        await db_pool.close()
 
 
 # ── Rate Limiting ──────────────────────────────────────────────
@@ -103,6 +165,76 @@ async def rate_limit(request: Request):
         await redis_client.expire(key, 60)  # 60 second window
     if current > 100:  # 100 requests per minute
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+
+# ── Auth ───────────────────────────────────────────────────────
+
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+    team_name: str
+    reporting_manager: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def require_db():
+    if db_pool is None:
+        raise HTTPException(status_code=503, detail="Account storage is unavailable (Postgres not connected)")
+    return db_pool
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
+
+
+def create_access_token(username: str) -> str:
+    if not JWT_SECRET:
+        raise HTTPException(status_code=503, detail="Auth is misconfigured: JWT_SECRET is not set")
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": username,
+        "iat": now,
+        "exp": now + timedelta(days=JWT_EXPIRY_DAYS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+async def require_auth(authorization: str = Header(default="")) -> str:
+    """Verifies the Bearer JWT and returns the logged-in username. Raises 401
+    on anything invalid/expired/missing so the frontend's existing "401 ->
+    log out" handling actually means something. Stateless: no DB round-trip,
+    which also means there's no server-side revocation short of rotating
+    JWT_SECRET (acceptable trade-off for this app's scale)."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing token")
+    if not JWT_SECRET:
+        raise HTTPException(status_code=503, detail="Auth is misconfigured: JWT_SECRET is not set")
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Session expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    return username
 
 
 # ── Proxy Helper ───────────────────────────────────────────────
@@ -173,38 +305,89 @@ async def gateway_health():
     return {"gateway": "healthy", "services": statuses, "timestamp": time.time()}
 
 
+# Auth routes
+@app.post("/api/v1/auth/signup", dependencies=[Depends(rate_limit)])
+async def signup(req: SignupRequest):
+    username = req.username.strip()
+    team_name = req.team_name.strip()
+    reporting_manager = req.reporting_manager.strip()
+    if not username or not req.password.strip() or not team_name or not reporting_manager:
+        raise HTTPException(status_code=400, detail="All fields are required.")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+    pool = require_db()
+    password_hash = hash_password(req.password)
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO users (username, password_hash, team_name, reporting_manager)
+                VALUES ($1, $2, $3, $4)
+                """,
+                username, password_hash, team_name, reporting_manager,
+            )
+    except asyncpg.UniqueViolationError:
+        raise HTTPException(status_code=409, detail="That username is already taken.")
+
+    log.info("auth: user registered (username=%s)", username)
+    return {"message": "User registered successfully.", "username": username}
+
+
+@app.post("/api/v1/auth/login", dependencies=[Depends(rate_limit)])
+async def login(req: LoginRequest):
+    username = req.username.strip()
+    pool = require_db()
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow(
+            "SELECT username, password_hash, team_name, reporting_manager FROM users WHERE username = $1",
+            username,
+        )
+    if not user or not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+
+    token = create_access_token(username)
+    log.info("auth: login success (username=%s)", username)
+    return {
+        "token": token,
+        "username": user["username"],
+        "team_name": user["team_name"],
+        "reporting_manager": user["reporting_manager"],
+    }
+
+
 # Ingestion routes
-@app.post("/api/v1/ingest", dependencies=[Depends(rate_limit)])
+@app.post("/api/v1/ingest", dependencies=[Depends(rate_limit), Depends(require_auth)])
 async def ingest_documents(request: Request):
     body = await request.json()
     return await proxy("ingestion", "/ingest", "POST", body)
 
 
-@app.get("/api/v1/ingest/status/{job_id}", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/ingest/status/{job_id}", dependencies=[Depends(rate_limit), Depends(require_auth)])
 async def ingestion_status(job_id: str):
     return await proxy("ingestion", f"/status/{job_id}", "GET")
 
 
 # Query routes
-@app.post("/api/v1/query", dependencies=[Depends(rate_limit)])
+@app.post("/api/v1/query", dependencies=[Depends(rate_limit), Depends(require_auth)])
 async def query(request: Request):
     body = await request.json()
     return await proxy("query", "/query", "POST", body)
 
 
 # Timeline routes
-@app.get("/api/v1/timeline/{topic}", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/timeline/{topic}", dependencies=[Depends(rate_limit), Depends(require_auth)])
 async def get_timeline(topic: str):
     return await proxy("timeline", f"/timeline/{topic}", "GET")
 
 
 # Graph routes
-@app.get("/api/v1/graph/decisions", dependencies=[Depends(rate_limit)])
-async def get_decisions(project: str = None):
+@app.get("/api/v1/graph/decisions", dependencies=[Depends(rate_limit), Depends(require_auth)])
+async def get_decisions(project: str | None = None):
     return await proxy("graph", "/decisions", "GET", params={"project": project})
 
 
-@app.get("/api/v1/graph/entities/{entity}", dependencies=[Depends(rate_limit)])
+@app.get("/api/v1/graph/entities/{entity}", dependencies=[Depends(rate_limit), Depends(require_auth)])
 async def get_entity(entity: str):
     return await proxy("graph", f"/entities/{entity}", "GET")
 

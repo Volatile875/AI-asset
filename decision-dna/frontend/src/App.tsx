@@ -15,6 +15,7 @@ import {
   Briefcase,
   LogOut
 } from "lucide-react";
+import OrbitingCirclesGlobeDemo from "@/components/ui/orbiting-circles-02";
 
 const GATEWAY_URL = `http://${window.location.hostname}:8000`;
 
@@ -520,14 +521,18 @@ export default function App() {
   if (!token) {
     return (
       <div style={{
-        display: "flex", 
-        justifyContent: "center", 
-        alignItems: "center", 
-        minHeight: "100vh", 
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
         backgroundColor: "#09090b",
         padding: "20px"
       }}>
-        <div className="card" style={{ width: "100%", maxWidth: "440px", padding: "32px", borderColor: "var(--accent-purple)" }}>
+        <div style={{ width: "100%", maxWidth: "560px", marginBottom: "-48px" }}>
+          <OrbitingCirclesGlobeDemo />
+        </div>
+        <div className="card" style={{ width: "100%", maxWidth: "440px", padding: "32px", borderColor: "var(--accent-purple)", position: "relative", zIndex: 20 }}>
           <div style={{ textAlign: "center", marginBottom: "28px" }}>
             <h2 style={{ color: "#c084fc", fontFamily: "Trebuchet MS", fontSize: "28px" }}>🧬 DecisionDNA</h2>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>Secure Organizational Memory Engine</p>

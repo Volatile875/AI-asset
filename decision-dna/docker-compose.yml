@@ -29,6 +29,10 @@ services:
       timeout: 10s
       retries: 10
 
+  # Postgres is NOT containerized here — api-gateway connects out to a
+  # native Postgres instance on the host (see .env: POSTGRES_HOST,
+  # defaults to host.docker.internal) for user accounts (signup/login).
+
   # ── Microservices ──────────────────────────────────────────
   ingestion-service:
     build:
@@ -101,6 +105,8 @@ services:
     ports:
       - "${GATEWAY_HOST_PORT:-8000}:8000"   # host port configurable; set GATEWAY_HOST_PORT in .env if 8000 is taken
     env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # lets the container reach the native Postgres on the host; no-op on Windows/Mac Docker Desktop, required on Linux
     depends_on:
       - ingestion-service
       - embedding-service
