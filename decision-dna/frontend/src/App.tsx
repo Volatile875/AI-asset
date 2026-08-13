@@ -16,6 +16,7 @@ import {
   LogOut
 } from "lucide-react";
 import OrbitingCirclesGlobeDemo from "@/components/ui/orbiting-circles-02";
+import { LiquidMetalButton } from "@/components/ui/liquid-metal-button";
 
 const GATEWAY_URL = `http://${window.location.hostname}:8000`;
 
@@ -636,9 +637,9 @@ export default function App() {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ padding: "12px", marginTop: "10px", width: "100%" }}>
-              {authTab === "signin" ? "Sign In" : "Register & Create Profile"}
-            </button>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
+              <LiquidMetalButton label={authTab === "signin" ? "Sign In" : "Register"} textColor="#ffffff" />
+            </div>
           </form>
 
           <div style={{ borderTop: "1px solid var(--border-subtle)", marginTop: "24px", paddingTop: "16px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
