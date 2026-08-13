@@ -1,0 +1,13 @@
+# Never copy host-built artifacts into the image — they are Windows binaries
+# and will clobber the clean Linux node_modules that `npm install` builds,
+# causing "sh: tsc: not found" during `npm run build`.
+node_modules
+dist
+
+# Local-only cruft
+.gitignore
+.oxlintrc.json
+*.vite-backup
+README.md
+Dockerfile
+.dockerignore
