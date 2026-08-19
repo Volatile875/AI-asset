@@ -15,7 +15,7 @@ import {
   Briefcase,
   LogOut
 } from "lucide-react";
-import OrbitingCirclesGlobeDemo from "@/components/ui/orbiting-circles-02";
+import DotGridBackground from "@/components/ui/dot-grid-background";
 import { LiquidMetalButton } from "@/components/ui/liquid-metal-button";
 
 const GATEWAY_URL = `http://${window.location.hostname}:8000`;
@@ -522,32 +522,38 @@ export default function App() {
   if (!token) {
     return (
       <div style={{
+        position: "relative",
         display: "flex",
-        flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
         backgroundColor: "#09090b",
+        overflow: "hidden",
         padding: "20px"
       }}>
-        <div style={{ width: "100%", maxWidth: "560px", marginBottom: "-48px" }}>
-          <OrbitingCirclesGlobeDemo />
-        </div>
-        <div className="card" style={{ width: "100%", maxWidth: "440px", padding: "32px", borderColor: "var(--accent-purple)", position: "relative", zIndex: 20 }}>
+        <DotGridBackground />
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          background: "radial-gradient(circle at center, rgba(9,9,11,0.35) 0%, rgba(9,9,11,0.92) 75%)",
+          pointerEvents: "none"
+        }} />
+        <div className="card" style={{ width: "100%", maxWidth: "440px", padding: "32px", borderColor: "var(--accent-purple)", position: "relative", zIndex: 2 }}>
           <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <h2 style={{ color: "#c084fc", fontFamily: "Trebuchet MS", fontSize: "28px" }}>🧬 DecisionDNA</h2>
+            <h2 style={{ color: "#c084fc", fontFamily: "Trebuchet MS", fontSize: "28px" }}>🧬 Ai-asset</h2>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>Secure Organizational Memory Engine</p>
           </div>
 
           <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
-            <button 
+            <button
               className={`menu-item ${authTab === "signin" ? "active" : ""}`}
               onClick={() => { setAuthTab("signin"); setAuthError(""); setAuthSuccess(""); }}
               style={{ flex: 1, textAlign: "center", justifyContent: "center" }}
             >
               Sign In
             </button>
-            <button 
+            <button
               className={`menu-item ${authTab === "signup" ? "active" : ""}`}
               onClick={() => { setAuthTab("signup"); setAuthError(""); setAuthSuccess(""); }}
               style={{ flex: 1, textAlign: "center", justifyContent: "center" }}
@@ -573,11 +579,11 @@ export default function App() {
               <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Username</label>
               <div style={{ position: "relative" }}>
                 <User size={16} style={{ position: "absolute", left: "14px", top: "14px", color: "var(--text-muted)" }} />
-                <input 
-                  type="text" 
-                  className="search-input" 
+                <input
+                  type="text"
+                  className="search-input"
                   style={{ paddingLeft: "42px", width: "100%" }}
-                  placeholder="e.g. ravisharma" 
+                  placeholder="e.g. ravisharma"
                   value={formUsername}
                   onChange={(e) => setFormUsername(e.target.value)}
                   required
@@ -591,11 +597,11 @@ export default function App() {
                   <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Team Name</label>
                   <div style={{ position: "relative" }}>
                     <Users size={16} style={{ position: "absolute", left: "14px", top: "14px", color: "var(--text-muted)" }} />
-                    <input 
-                      type="text" 
-                      className="search-input" 
+                    <input
+                      type="text"
+                      className="search-input"
                       style={{ paddingLeft: "42px", width: "100%" }}
-                      placeholder="e.g. CloudMigration" 
+                      placeholder="e.g. CloudMigration"
                       value={formTeamName}
                       onChange={(e) => setFormTeamName(e.target.value)}
                       required
@@ -607,11 +613,11 @@ export default function App() {
                   <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Reporting Manager Name</label>
                   <div style={{ position: "relative" }}>
                     <Briefcase size={16} style={{ position: "absolute", left: "14px", top: "14px", color: "var(--text-muted)" }} />
-                    <input 
-                      type="text" 
-                      className="search-input" 
+                    <input
+                      type="text"
+                      className="search-input"
                       style={{ paddingLeft: "42px", width: "100%" }}
-                      placeholder="e.g. Priya Patel" 
+                      placeholder="e.g. Priya Patel"
                       value={formReportingManager}
                       onChange={(e) => setFormReportingManager(e.target.value)}
                       required
@@ -625,11 +631,11 @@ export default function App() {
               <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Password</label>
               <div style={{ position: "relative" }}>
                 <Lock size={16} style={{ position: "absolute", left: "14px", top: "14px", color: "var(--text-muted)" }} />
-                <input 
-                  type="password" 
-                  className="search-input" 
+                <input
+                  type="password"
+                  className="search-input"
                   style={{ paddingLeft: "42px", width: "100%" }}
-                  placeholder="••••••••" 
+                  placeholder="••••••••"
                   value={formPassword}
                   onChange={(e) => setFormPassword(e.target.value)}
                   required
@@ -654,7 +660,7 @@ export default function App() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          🧬 DecisionDNA
+          🧬 Ai-asset
         </div>
         <div className="sidebar-sublogo">AI Organizational Memory Engine</div>
         
@@ -665,7 +671,7 @@ export default function App() {
             className={`menu-item ${activeTab === "ask" ? "active" : ""}`}
             onClick={() => setActiveTab("ask")}
           >
-            <Search size={18} /> Ask DecisionDNA
+            <Search size={18} /> Ask Ai-asset
           </button>
           <button 
             className={`menu-item ${activeTab === "timeline" ? "active" : ""}`}
@@ -763,7 +769,7 @@ export default function App() {
         
         {activeTab === "ask" && (
           <div>
-            <h1 className="page-title">🔍 Ask DecisionDNA</h1>
+            <h1 className="page-title">🔍 Ask Ai-asset</h1>
             <p className="page-subtitle">Ask any question about historical decisions, vendor evaluations, or project context.</p>
 
             <form onSubmit={handleAsk} className="search-form">
