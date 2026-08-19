@@ -10,20 +10,31 @@ All application code lives in [decision-dna/](decision-dna/). The repo root only
 
 ## Architecture
 
-Six FastAPI microservices behind an API gateway, plus a Streamlit UI and a standalone MCP server. Everything is orchestrated by [decision-dna/docker-compose.yml](decision-dna/docker-compose.yml).
+Six FastAPI microservices behind an API gateway, plus a React SPA and a standalone MCP server. Everything is orchestrated by [decision-dna/docker-compose.yml](decision-dna/docker-compose.yml).
 
 | Service | Port | Role |
 |---|---|---|
-| api-gateway | 8000 | Routes to all services, IP rate-limiting (100/min, Redis-backed), CORS, Scalar docs at `/scalar` |
+| api-gateway | 8000 | Routes to all services, IP rate-limiting (100/min, Redis-backed), CORS, JWT auth (signup/login + `require_auth` on every data route), Scalar docs at `/scalar` |
 | ingestion-service | 8001 | Parses JSON emails/meetings/Jira → normalized docs; fans out to embedding + graph |
 | embedding-service | 8002 | Chunks (`RecursiveCharacterTextSplitter`), embeds via OpenAI, upserts to Pinecone |
 | graph-service | 8003 | Builds/queries the Neo4j knowledge graph (Person/Project/Decision/Meeting/Ticket/Email nodes) |
 | query-service | 8004 | The core: a LangGraph 5-agent pipeline (Planner → Search → Timeline → Decision → Answer) |
 | timeline-service | 8005 | Uses OpenAI to extract structured, dated timeline events from Pinecone hits |
-| frontend | 8501 | Streamlit UI: Ask / Timeline / Graph / Ingest / Health |
+| frontend | 8501 | React + TypeScript + Vite SPA (Tailwind v4, shadcn/ui): sign up/sign in, then Ask / Timeline / Graph / Ingest / Health |
 | mcp-server | stdio | FastMCP server for live Jira status + SQLite history; run separately, not in compose |
 
 Data path: raw JSON in `data/synthetic/{emails,meetings,jira}/` → ingestion normalizes → embedding (Pinecone vectors) + graph (Neo4j) → query-service orchestrates retrieval across both plus timeline-service to answer.
+
+### Frontend (React + Vite + TypeScript)
+
+`decision-dna/frontend/` is a Vite + React 19 + TypeScript SPA, not the Streamlit app it used to be (that history is why you may see stray references to `app.py`/`requirements.txt` in old branches or docs — the live code is 100% React now). Single-file app in [frontend/src/App.tsx](decision-dna/frontend/src/App.tsx); everything (auth screen, sidebar nav, all five tabs) lives in that one component, styled by [frontend/src/index.css](decision-dna/frontend/src/index.css) (CSS custom properties for the dark-purple theme, e.g. `--accent-purple: #8b5cf6`) plus Tailwind utility classes.
+
+- **shadcn/ui is configured** (`components.json`, `new-york` style, `@/*` → `./src/*` alias in both `vite.config.ts` and `tsconfig.app.json`). Drop new shadcn components into `frontend/src/components/ui/` — that's already the correct default path, no setup needed. `frontend/src/lib/utils.ts` exports the `cn()` helper (`clsx` + `tailwind-merge`).
+- **Auth is JWT, not session cookies.** The app posts to `/api/v1/auth/signup` and `/api/v1/auth/login` on the gateway; login returns a token that's stored in `localStorage` (`dna_token`) and sent as `Authorization: Bearer <token>` on every subsequent call via the `authFetch` wrapper in `App.tsx`. A `401` anywhere triggers an automatic logout. The gateway talks to a **native Postgres on the host** (not containerized — see gotcha below) for the `users` table.
+- **Talking to the gateway:** `App.tsx` builds `GATEWAY_URL` as `http://${window.location.hostname}:8000` — it infers the gateway host from whatever host the page itself was loaded from, so it works both via `localhost` and via a LAN IP without extra config.
+- **Dev vs. prod serving — both are hardcoded to port 8501, and they conflict.** `vite.config.ts` sets `server.port: 8501` with `strictPort: true` (Vite refuses to fall back to another port), matching the Dockerfile's `serve -s dist -l 8501`. You can't run `npm run dev` while the Docker `frontend` container is up — `docker compose stop frontend` first, then `npm run dev`, then `docker compose start frontend` when done. (The port is deliberately *not* 3000 — Vite's dev client has a hardcoded `3e3===+window.location.port` heuristic that misdetects the backend port if served on 3000.)
+- **`frontend/.dockerignore` matters.** The Dockerfile does `npm install` then `COPY . .` then `npm run build`; without `.dockerignore` excluding `node_modules`/`dist`, the `COPY` overwrites the image's freshly-installed Linux `node_modules` with whatever's in your local (possibly Windows) `node_modules`, breaking `tsc`/`vite` inside the container.
+- Package scripts: `npm run dev` (Vite dev server), `npm run build` (`tsc -b && vite build`), `npm run lint` (`oxlint`), `npm run preview`.
 
 ### Critical structural gotchas
 
@@ -31,6 +42,7 @@ Data path: raw JSON in `data/synthetic/{emails,meetings,jira}/` → ingestion no
 - **The two context docs can drift from the code.** [decision-dna/AGENT_CONTEXT.md](decision-dna/AGENT_CONTEXT.md) and the README are useful for intent, but when they conflict with source, trust the source. The current LLM path uses OpenAI chat completions through `OPENAI_API_KEY`; Pinecone index defaults to `ai-asset` and embeddings use `1024` dimensions.
 - **Neo4j has two possible targets.** `docker-compose.yml` runs a **local** Neo4j (`neo4j:5.15`, auth `neo4j/password123`), but `shared/config/settings.py` defaults to a **cloud Aura** URI. The actual connection is whatever `.env` (`NEO4J_URI`, `NEO4J_PASSWORD`) provides to each service — set this deliberately.
 - **Duplicated synthetic data.** Both `data/synthetic/` and `scripts/data/synthetic/` exist. Compose mounts `./data` to `/app/data`, and ingestion reads `/app/data/synthetic`, so `decision-dna/data/synthetic/` is the one that matters at runtime.
+- **Every data route requires a JWT, and auth needs two things `docker-compose.yml` doesn't fully provide on its own.** `require_auth` in `api-gateway/app/main.py` guards `/api/v1/ingest`, `/api/v1/query`, `/api/v1/timeline/*`, and `/api/v1/graph/*` — signup/login first via `/api/v1/auth/signup` / `/api/v1/auth/login`, then send `Authorization: Bearer <token>`. That needs (1) `JWT_SECRET` set in `.env` (empty → every auth call `503`s with "Auth is misconfigured"), and (2) a **native Postgres reachable at `POSTGRES_HOST`** (defaults to `host.docker.internal`, resolved via the `extra_hosts` entry already in compose) — the gateway auto-creates the `users` table on startup, but the Postgres *server* itself is not containerized and must already be running.
 
 ## Commands
 
@@ -40,7 +52,8 @@ All commands run from `decision-dna/`.
 cd decision-dna
 
 # 1. Configure — no .env.example is committed; create .env from the vars below
-#    Required: OPENAI_API_KEY, PINECONE_API_KEY, NEO4J_PASSWORD
+#    Required: OPENAI_API_KEY, PINECONE_API_KEY, NEO4J_PASSWORD, JWT_SECRET,
+#               POSTGRES_HOST/PORT/DB/USER/PASSWORD (native Postgres for user accounts)
 #    Plus PINECONE_INDEX_NAME, EMBEDDING_DIMENSIONS, service URLs (see AGENT_CONTEXT.md)
 
 # 2. Generate synthetic data (100 emails, 50 meetings, 100 Jira tickets → data/synthetic/)
@@ -74,7 +87,7 @@ Uvicorn runs with `--reload` in every service `Dockerfile`, but the code is `COP
 
 ## Testing & linting
 
-There is **no test suite, no linter config, and no CI** in this repo. "Verifying" a change means exercising it against the running stack — e.g. `POST /api/v1/query` through the gateway or the Streamlit UI — not running tests.
+There is **no backend test suite and no CI** in this repo. The frontend has `oxlint` configured (`npm run lint` in `frontend/`) but nothing else. "Verifying" a change means exercising it against the running stack — e.g. an authenticated `POST /api/v1/query` through the gateway, or the React UI at `:8501` — not running tests.
 
 ## Adding to the query pipeline
 
