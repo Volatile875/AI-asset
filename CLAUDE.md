@@ -92,3 +92,64 @@ There is **no backend test suite and no CI** in this repo. The frontend has `oxl
 ## Adding to the query pipeline
 
 The 5 agents in [query-service/app/main.py](decision-dna/services/query-service/app/main.py) are plain functions over a shared `AgentState` TypedDict, wired into a LangGraph `StateGraph`. To add or reorder a step: write a `def agent(state) -> AgentState` function, add it as a node, and update the edges. Agents append human-readable strings to `state["processing_steps"]`, which surface in the API response and UI.
+
+## Reference details (consolidated from now-deleted docs)
+
+The sections below were merged in from `README.md`, `AGENT_CONTEXT.md`, `GROQ_MIGRATION_CONTEXT.md`, `PROJECT_STRUCTURE.md`, `WINDOWS_DOCKER_SETUP.md`, and the root `README.md` — kept only where still accurate; anything that conflicted with the source (Streamlit UI, port 3000, port-8501-as-Streamlit, 3072-dim embeddings, Anthropic as the LLM, `.env.example`) was dropped rather than carried over. `AUDIT.md` and `OPTIMIZATION.md` were left as standalone files — they're detailed, occasion-specific reports (perf audit + the fixes applied), not everyday reference material, so they're better opened only when someone's actually working on performance.
+
+### Gateway routes (api-gateway :8000)
+
+- `POST /api/v1/auth/signup`, `POST /api/v1/auth/login` — JWT issuance, backed by native Postgres
+- `POST /api/v1/ingest`, `GET /api/v1/ingest/status/{job_id}` — trigger/poll ingestion (auth required)
+- `POST /api/v1/query` — ask a question (auth required)
+- `GET /api/v1/timeline/{topic}?project=` — decision timeline for a topic (auth required)
+- `GET /api/v1/graph/decisions`, `GET /api/v1/graph/entities/{entity}` — Neo4j reads (auth required)
+- `GET /health` — fan-out health check across all services
+- `GET /scalar` — OpenAPI docs UI
+
+### Neo4j graph schema (graph-service :8003)
+
+Nodes: `Person {name}`, `Project {name}`, `Decision {id, description, date, project}`, `Meeting {id, title, date, project}`, `Ticket {id, title, status, date}`, `Email {id, subject, date, project}`.
+Relationships: `(Person)-[:ATTENDED]->(Meeting)`, `(Person)-[:INVOLVED_IN]->(Ticket)`, `(Person)-[:SENT_OR_RECEIVED]->(Email)`, `(Meeting)-[:PART_OF]->(Project)`, `(Meeting)-[:PRODUCED]->(Decision)`, `(Ticket)-[:PART_OF]->(Project)`.
+Entry point is `app/graph_services_main.py` (not `app/main.py` — see the structural gotchas above); it returns `{rel, labels, m}` from `/entities/{name}`, matching what the frontend reads.
+
+### Ingested document format
+
+Every parser (email/meeting/Jira) normalizes into this shape before it's chunked and embedded:
+
+```json
+{
+  "doc_id": "EMAIL-001",
+  "doc_type": "email",
+  "title": "Subject line",
+  "content": "Combined text for embedding",
+  "date": "2024-01-15T10:30:00",
+  "participants": ["sender", "recipients"],
+  "project": "CloudMigration",
+  "tags": ["migration", "azure"],
+  "source_path": "/app/data/...",
+  "raw": { "...": "original parsed JSON" }
+}
+```
+
+Raw source JSON per type: emails have `id/from/to/date/subject/body/project/tags`; meetings have `id/title/date/attendees/discussion/decisions/action_items/project/tags`; Jira tickets have `id/title/description/status/priority/reporter/assignee/created/labels/project/comments`.
+
+### MCP server (Jira integration, stdio — `mcp-server/`)
+
+Run standalone with `python mcp-server/server.py`, needs `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_STATUS_DB_PATH`. Tools: `fetch_jira_ticket_status(ticket_key)`, `fetch_many_jira_ticket_statuses(ticket_keys)`, `get_stored_jira_ticket_status(ticket_key)`, `get_jira_ticket_status_history(ticket_key, limit)`. Persists to SQLite: a current-status table, status snapshots, and a status-transitions table (`from_status`, `to_status`, `changed_at`, `author`).
+
+### LLM provider routing
+
+Chat completions prefer Groq (`GROQ_API_KEY` set → `llama-3.3-70b-versatile` by default, ~95% cheaper) and fall back to OpenAI (`gpt-4o-mini`) when it isn't set. Embeddings always go to OpenAI — Groq has no embeddings endpoint. `app/llm.py` (per-service) auto-detects a retired/unavailable Groq model via the provider's `/models` catalogue and switches chat models automatically (`CHAT_MODEL_AUTO_FALLBACK=false` to disable); `/health` reports both the configured and effective chat model. This replaced an earlier bug where ambiguous `or`-chained env lookups could send a Groq key to the OpenAI endpoint — fixed in all three `provider_config.py` copies (embedding/query/timeline-service).
+
+### Windows + Docker Desktop setup essentials
+
+- `.\start.ps1` (from `decision-dna/`) automates the manual steps below: preflight checks, generates `corp-ca.crt` + a `.env` template if missing, builds, starts, polls `/health`. Flags: `-SkipBuild`, `-Down`.
+- **Corporate TLS interception** (Cloudflare Gateway / Zscaler, common on corporate networks) breaks `pip install` and runtime Pinecone/OpenAI calls inside fresh containers with `CERTIFICATE_VERIFY_FAILED` unless a `corp-ca.crt` is copied into all 7 build contexts (`api-gateway`, `frontend`, and each of the 5 `services/*`). Gitignored; regenerated per machine, not committed. See the note in the audit — 7 copies to keep in sync, kept deliberately rather than deduplicated.
+- Docker Desktop needs **8 GB+ RAM** allocated (Neo4j + 6 Python services + Redis); 4 GB thrashes. Give it WSL2 file sharing access to whichever drive the repo is on — a network share is slow to build from.
+- Host port conflicts: don't edit `docker-compose.yml` — set `GATEWAY_HOST_PORT` / `REDIS_HOST_PORT` overrides in `.env` instead; the internal ports (and the UI, which talks over Docker's internal network) keep working either way.
+- Common failure → cause: `COPY corp-ca.crt ... not found` → Section 3 skipped, create the file. `CERTIFICATE_VERIFY_FAILED` during `pip install` → CA not trusted in the build, rebuild with `--no-cache`. `pinecone ... 401` at startup → bad/missing `PINECONE_API_KEY` or the `ai-asset` index doesn't exist yet. `Bind for 0.0.0.0:XXXX failed` → another process holds that host port. Services show `running` in `docker compose ps` even after a startup crash because of `--reload` — always confirm with `docker compose logs <service>`.
+
+### Environment variables (non-exhaustive, see `.env` on disk for the live set)
+
+Required: `OPENAI_API_KEY`, `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` (defaults `ai-asset`), `EMBEDDING_DIMENSIONS` (`1024`), `NEO4J_URI`/`NEO4J_PASSWORD`, `REDIS_URL`, `JWT_SECRET`, `POSTGRES_HOST`/`PORT`/`DB`/`USER`/`PASSWORD`. Optional: `GROQ_API_KEY`/`GROQ_CHAT_MODEL`/`GROQ_BASE_URL`, `OPENAI_CHAT_MODEL`, service URL overrides (`INGESTION_SERVICE_URL` etc., docker network names — don't change unless you know why), `JIRA_*` (MCP server only), `LLM_STUB_FALLBACK`, `QUERY_CACHE_TTL`/`TIMELINE_CACHE_TTL`, `DECISION_CONTEXT_CHUNKS`, `RETRIEVAL_MIN_SCORE`.
