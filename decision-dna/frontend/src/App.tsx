@@ -20,6 +20,44 @@ import { LiquidMetalButton } from "@/components/ui/liquid-metal-button";
 
 const GATEWAY_URL = `http://${window.location.hostname}:8000`;
 
+// Request timeouts. Nothing here used to time out, so a stuck pipeline left the
+// user watching a spinner until the browser gave up. Keep QUERY_TIMEOUT_MS below
+// the gateway's own proxy timeout so the user sees our message, not a dead socket.
+const QUERY_TIMEOUT_MS = 90_000;
+const TIMELINE_TIMEOUT_MS = 60_000;
+const SHORT_TIMEOUT_MS = 15_000;
+const HEALTH_TIMEOUT_MS = 10_000;
+// The gateway probes all five services concurrently now and caches the result
+// for ~10s, so polling faster than this buys nothing.
+const HEALTH_POLL_MS = 60_000;
+
+class RequestTimeoutError extends Error {
+  constructor(seconds: number) {
+    super(`This is taking longer than ${seconds} seconds. The request was cancelled — the service may be busy or still starting up.`);
+    this.name = "RequestTimeoutError";
+  }
+}
+
+/** fetch with an AbortController deadline; turns aborts into a readable message. */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = SHORT_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new RequestTimeoutError(Math.round(timeoutMs / 1000));
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface QueryResponse {
   answer: string;
   confidence_score: number;
@@ -77,13 +115,13 @@ export default function App() {
 
   useEffect(() => {
     fetchHealth();
-    const interval = setInterval(fetchHealth, 15000);
+    const interval = setInterval(fetchHealth, HEALTH_POLL_MS);
     return () => clearInterval(interval);
   }, []);
 
   const fetchHealth = async () => {
     try {
-      const r = await fetch(`${GATEWAY_URL}/health`);
+      const r = await fetchWithTimeout(`${GATEWAY_URL}/health`, {}, HEALTH_TIMEOUT_MS);
       if (r.ok) {
         const data = await r.json();
         setHealthStatus(data);
@@ -93,12 +131,16 @@ export default function App() {
     }
   };
 
-  const authFetch = async (url: string, options: RequestInit = {}) => {
+  const authFetch = async (
+    url: string,
+    options: RequestInit = {},
+    timeoutMs: number = SHORT_TIMEOUT_MS
+  ) => {
     const headers = {
       ...(options.headers || {}),
       "Authorization": `Bearer ${token}`
     };
-    const r = await fetch(url, { ...options, headers });
+    const r = await fetchWithTimeout(url, { ...options, headers }, timeoutMs);
     if (r.status === 401) {
       handleLogout();
       throw new Error("Session expired. Please log in again.");
@@ -117,7 +159,7 @@ export default function App() {
     }
 
     try {
-      const r = await fetch(`${GATEWAY_URL}/api/v1/auth/signup`, {
+      const r = await fetchWithTimeout(`${GATEWAY_URL}/api/v1/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -150,7 +192,7 @@ export default function App() {
     }
 
     try {
-      const r = await fetch(`${GATEWAY_URL}/api/v1/auth/login`, {
+      const r = await fetchWithTimeout(`${GATEWAY_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -212,7 +254,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
-      });
+      }, QUERY_TIMEOUT_MS);
       if (!r.ok) {
         const errData = await r.json();
         throw new Error(errData.detail || `Server error: ${r.status}`);
@@ -234,7 +276,7 @@ export default function App() {
 
     try {
       const projParam = projectFilter !== "All Projects" ? `&project=${projectFilter}` : "";
-      const r = await authFetch(`${GATEWAY_URL}/api/v1/timeline/${encodeURIComponent(timelineTopic)}?topic=${encodeURIComponent(timelineTopic)}${projParam}`);
+      const r = await authFetch(`${GATEWAY_URL}/api/v1/timeline/${encodeURIComponent(timelineTopic)}?topic=${encodeURIComponent(timelineTopic)}${projParam}`, {}, TIMELINE_TIMEOUT_MS);
       if (r.ok) {
         const data = await r.json();
         setTimelineResult(data);

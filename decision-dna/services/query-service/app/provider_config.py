@@ -12,7 +12,9 @@ def resolve_provider_config() -> Dict[str, Optional[str]]:
     if os.getenv("GROQ_API_KEY"):
         chat_api_key = os.getenv("GROQ_API_KEY")
         chat_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-        chat_model = os.getenv("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile")
+        # Groq retired the Llama families; gpt-oss-120b is its current flagship
+        # production chat model. Overridden by GROQ_CHAT_MODEL in .env.
+        chat_model = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b")
     else:
         chat_api_key = os.getenv("OPENAI_API_KEY", "")
         chat_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")

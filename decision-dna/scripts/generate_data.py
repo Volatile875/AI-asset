@@ -8,6 +8,7 @@ All around a cloud migration project scenario.
 Run: python scripts/generate_data.py
 """
 
+import argparse
 import json
 import os
 import random
@@ -17,7 +18,16 @@ from pathlib import Path
 
 # ── Config ─────────────────────────────────────────────────────
 
-OUTPUT_DIR = Path("data/synthetic")
+# Anchored to this file, NOT to the current working directory.
+#
+# The previous value was the relative Path("data/synthetic"), so where the
+# corpus landed depended on where you happened to be standing when you ran the
+# script. Running it from `scripts/` created a second, unreferenced tree at
+# `scripts/data/synthetic/` while docker-compose kept mounting `./data` — which
+# is how the live index ended up holding a handful of documents instead of 250.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "synthetic"
+OUTPUT_DIR = DEFAULT_OUTPUT_DIR
 PEOPLE = [
     "Ravi Sharma", "Priya Patel", "Alex Johnson", "Neha Gupta",
     "John Smith", "Anjali Mehta", "David Chen", "Pooja Verma",
@@ -302,7 +312,22 @@ def generate_jira(count: int = 100) -> list:
 
 # ── Main ───────────────────────────────────────────────────────
 
-def main():
+def main(argv=None):
+    global OUTPUT_DIR
+    parser = argparse.ArgumentParser(description="Generate the DecisionDNA synthetic corpus.")
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=DEFAULT_OUTPUT_DIR,
+        help=f"Output directory (default: {DEFAULT_OUTPUT_DIR}, the tree docker-compose mounts).",
+    )
+    args = parser.parse_args(argv)
+    OUTPUT_DIR = args.out.resolve()
+
+    if OUTPUT_DIR != DEFAULT_OUTPUT_DIR:
+        print(f"⚠️  Writing to {OUTPUT_DIR}, which is NOT the directory docker-compose mounts")
+        print(f"   ({DEFAULT_OUTPUT_DIR}). Ingestion will not see this data.")
+
     # Create output directories
     (OUTPUT_DIR / "emails").mkdir(parents=True, exist_ok=True)
     (OUTPUT_DIR / "meetings").mkdir(parents=True, exist_ok=True)

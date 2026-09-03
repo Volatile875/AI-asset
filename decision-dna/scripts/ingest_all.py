@@ -18,6 +18,40 @@ GATEWAY = os.getenv("GATEWAY_URL", "http://localhost:8000")
 # embedding-service is published on 8002 by docker-compose; override if remapped
 EMBEDDING = os.getenv("EMBEDDING_URL", "http://localhost:8002")
 
+# /api/v1/ingest is behind require_auth on the gateway, so this script needs a
+# JWT. Provide DNA_TOKEN directly, or DNA_USER/DNA_PASSWORD to log in first.
+DNA_TOKEN = os.getenv("DNA_TOKEN", "")
+DNA_USER = os.getenv("DNA_USER", "")
+DNA_PASSWORD = os.getenv("DNA_PASSWORD", "")
+
+
+def auth_headers() -> dict:
+    """Return the Authorization header for the gateway's protected routes."""
+    global DNA_TOKEN
+    if DNA_TOKEN:
+        return {"Authorization": f"Bearer {DNA_TOKEN}"}
+    if DNA_USER and DNA_PASSWORD:
+        print("🔑 Logging in as", DNA_USER)
+        try:
+            resp = httpx.post(
+                f"{GATEWAY}/api/v1/auth/login",
+                json={"username": DNA_USER, "password": DNA_PASSWORD},
+                timeout=15,
+            )
+        except Exception as e:
+            print(f"❌ Could not reach the gateway at {GATEWAY}: {e}")
+            sys.exit(1)
+        if resp.status_code != 200:
+            print(f"❌ Login failed (HTTP {resp.status_code}): {resp.text[:200]}")
+            sys.exit(1)
+        DNA_TOKEN = resp.json()["token"]
+        return {"Authorization": f"Bearer {DNA_TOKEN}"}
+
+    print("🛑 No credentials. /api/v1/ingest requires a JWT.")
+    print("   Set DNA_TOKEN, or DNA_USER and DNA_PASSWORD, then re-run.")
+    print("   (Sign up first via POST /api/v1/auth/signup or the UI at :8501.)")
+    sys.exit(1)
+
 
 def preflight():
     """Verify OpenAI + Pinecone credentials via embedding-service /selftest.
@@ -47,8 +81,9 @@ def preflight():
         print("  ✅ OpenAI embeddings: reachable")
     else:
         openai_ok = False
-        print(f"  ⚠️ OpenAI embeddings: degraded ({openai_res.get('error')})")
-        print("     Will use local FallbackEmbeddings (hash-based vectors) into the real Pinecone index.")
+        print(f"  ❌ OpenAI embeddings: unavailable ({openai_res.get('error')})")
+        print("     embedding-service will REFUSE to write local fallback vectors into the")
+        print("     real Pinecone index, so ingestion would fail rather than poison it.")
 
     pinecone_ok = True
     if pinecone_res.get("ok"):
@@ -69,9 +104,12 @@ def preflight():
         sys.exit(1)
 
     if not openai_ok:
-        print("  ⚠️ Proceeding in degraded mode (using local FallbackEmbeddings).\n")
-    else:
-        print("  ✅ All credentials valid — proceeding.\n")
+        print()
+        print("🛑 Aborting BEFORE ingest: the embedding provider is unreachable.")
+        print("   Fix OPENAI_API_KEY in decision-dna/.env, rebuild embedding-service, then re-run.")
+        sys.exit(1)
+
+    print("  ✅ All credentials valid — proceeding.\n")
 
 
 def check_health():
@@ -87,6 +125,8 @@ def check_health():
 def ingest():
     print("🚀 Triggering ingestion pipeline...")
 
+    headers = auth_headers()
+
     response = httpx.post(
         f"{GATEWAY}/api/v1/ingest",
         json={
@@ -94,6 +134,7 @@ def ingest():
             "trigger_embedding": True,
             "trigger_graph": True,
         },
+        headers=headers,
         timeout=10,
     )
     response.raise_for_status()
@@ -104,13 +145,17 @@ def ingest():
 
     while True:
         time.sleep(3)
-        status_resp = httpx.get(f"{GATEWAY}/api/v1/ingest/status/{job_id}", timeout=10)
+        status_resp = httpx.get(
+            f"{GATEWAY}/api/v1/ingest/status/{job_id}", headers=headers, timeout=10
+        )
         if status_resp.status_code == 200:
             data = status_resp.json()
             status = data.get("status", "unknown")
             print(f"   Status: {status} | {data.get('progress', '')}")
             if status == "completed":
-                print(f"✅ Ingestion complete! Total docs: {data.get('total_docs', '?')}")
+                print(f"✅ Ingestion complete! Total docs: {data.get('total_docs', '?')} "
+                      f"(corpus_version={data.get('corpus_version', '?')}; "
+                      f"cached query/timeline answers invalidated)")
                 break
             elif status == "failed":
                 print(f"❌ Ingestion failed: {data.get('error', 'unknown')}")

@@ -9,9 +9,10 @@ import json
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import httpx
 import redis.asyncio as redis
@@ -30,7 +31,41 @@ logging.basicConfig(
 )
 log = logging.getLogger("ingestion-service")
 
-app = FastAPI(title="Ingestion Service", version="1.0.0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
+EMBEDDING_URL = os.getenv("EMBEDDING_SERVICE_URL", "http://embedding-service:8002")
+GRAPH_URL = os.getenv("GRAPH_SERVICE_URL", "http://graph-service:8003")
+
+# Bumped after every successful ingest. Read-path caches in query-service and
+# timeline-service namespace their keys by this value, so a re-ingest
+# invalidates every cached answer at once without enumerating keys.
+CORPUS_VERSION_KEY = "dna:corpus_version"
+
+redis_client = None
+http_client: Optional[httpx.AsyncClient] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global redis_client, http_client
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    # One pool for the whole process instead of a new client per ingest job.
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(300.0, connect=5.0),
+        limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+    )
+    try:
+        yield
+    finally:
+        if http_client is not None:
+            await http_client.aclose()
+        if redis_client is not None:
+            try:
+                await redis_client.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+
+app = FastAPI(title="Ingestion Service", version="1.0.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -49,19 +84,6 @@ async def trace_requests(request, call_next):
              (time.perf_counter() - start) * 1000, rid)
     response.headers["x-request-id"] = rid
     return response
-
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
-EMBEDDING_URL = os.getenv("EMBEDDING_SERVICE_URL", "http://embedding-service:8002")
-GRAPH_URL = os.getenv("GRAPH_SERVICE_URL", "http://graph-service:8003")
-
-redis_client = None
-
-
-@app.on_event("startup")
-async def startup():
-    global redis_client
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-
 
 # ── Models ─────────────────────────────────────────────────────
 
@@ -113,24 +135,55 @@ async def run_ingestion_job(job_id: str, data_dir: str, trigger_embedding: bool,
 
         log.info("job %s: parsed %d documents", job_id, len(documents))
 
-        # Trigger downstream services
-        async with httpx.AsyncClient(timeout=120) as client:
-            if trigger_embedding:
-                log.info("job %s: POST %s/embed-batch (%d docs)", job_id, EMBEDDING_URL, len(documents))
-                r = await client.post(f"{EMBEDDING_URL}/embed-batch", json={"documents": documents})
-                log.info("job %s: embed-batch → %s %s", job_id, r.status_code, r.text[:200])
+        # Trigger downstream services over the shared connection pool.
+        client = http_client
+        if client is None:
+            raise RuntimeError("HTTP client is not initialised")
 
-            if trigger_graph:
-                log.info("job %s: POST %s/build-graph (%d docs)", job_id, GRAPH_URL, len(documents))
-                r = await client.post(f"{GRAPH_URL}/build-graph", json={"documents": documents})
-                log.info("job %s: build-graph → %s %s", job_id, r.status_code, r.text[:200])
+        embed_failed = None
+        if trigger_embedding:
+            log.info("job %s: POST %s/embed-batch (%d docs)", job_id, EMBEDDING_URL, len(documents))
+            r = await client.post(f"{EMBEDDING_URL}/embed-batch", json={"documents": documents})
+            log.info("job %s: embed-batch → %s %s", job_id, r.status_code, r.text[:200])
+            if r.status_code >= 400:
+                # e.g. the embedding account is out of credit (402), the provider
+                # is still throttling (503), or fallback vectors were refused.
+                # Surface it instead of reporting "completed".
+                try:
+                    reason = r.json().get("detail", r.text)
+                except Exception:  # noqa: BLE001
+                    reason = r.text
+                kind = {
+                    402: "embedding account is out of API credit",
+                    503: "embedding provider unavailable",
+                }.get(r.status_code, f"embed-batch returned {r.status_code}")
+                embed_failed = f"{kind}: {str(reason)[:600]}"
+
+        if trigger_graph:
+            log.info("job %s: POST %s/build-graph (%d docs)", job_id, GRAPH_URL, len(documents))
+            r = await client.post(f"{GRAPH_URL}/build-graph", json={"documents": documents})
+            log.info("job %s: build-graph → %s %s", job_id, r.status_code, r.text[:200])
+
+        if embed_failed:
+            await redis_client.hset(f"job:{job_id}", mapping={
+                "status": "failed",
+                "error": embed_failed,
+                "total_docs": str(len(documents)),
+            })
+            log.error("job %s: FAILED — %s", job_id, embed_failed)
+            return
+
+        # Corpus changed: invalidate every cached query/timeline answer.
+        corpus_version = await redis_client.incr(CORPUS_VERSION_KEY)
 
         await redis_client.hset(f"job:{job_id}", mapping={
             "status": "completed",
             "total_docs": str(len(documents)),
+            "corpus_version": str(corpus_version),
             "completed_at": datetime.utcnow().isoformat(),
         })
-        log.info("job %s: completed (%d docs)", job_id, len(documents))
+        log.info("job %s: completed (%d docs, corpus_version=%s)",
+                 job_id, len(documents), corpus_version)
 
     except Exception as e:
         log.exception("job %s: FAILED", job_id)
