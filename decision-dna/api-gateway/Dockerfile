@@ -12,4 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN cat /usr/local/share/ca-certificates/corp-ca.crt >> "$(python -c 'import certifi; print(certifi.where())')"
 COPY . .
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Production entrypoint. No --reload: the reloader spawns a watchfiles
+# supervisor that stat-walks /app continuously and pins the service to a
+# single worker, and it can never fire here because the code is COPY-baked
+# into the image rather than bind-mounted.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

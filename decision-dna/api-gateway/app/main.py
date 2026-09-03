@@ -8,7 +8,9 @@ import os
 import time
 import uuid
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional, Tuple
 import asyncio
 import asyncpg
 import bcrypt
@@ -34,10 +36,42 @@ except ImportError:  # scalar-fastapi 1.0.0 keeps it in a submodule
     except ImportError:
         get_scalar_api_reference = None
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Own the process-lifetime resources: one HTTP connection pool, Redis, Postgres.
+
+    The proxy used to build a fresh httpx.AsyncClient per call, so every proxied
+    request paid a new TCP (and, for any TLS hop, handshake) cost and no
+    connection was ever reused.
+    """
+    global redis_client, db_pool, http_client
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(PROXY_TIMEOUT_S, connect=5.0),
+        limits=httpx.Limits(max_connections=200, max_keepalive_connections=40),
+    )
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        db_pool = await connect_postgres_with_retry()
+        log.info("postgres: connected, schema ensured")
+    except Exception:
+        log.exception("postgres: failed to connect at startup; auth routes will 503 until it recovers")
+        db_pool = None
+    try:
+        yield
+    finally:
+        if http_client is not None:
+            await http_client.aclose()
+        if redis_client:
+            await redis_client.close()
+        if db_pool:
+            await db_pool.close()
+
+
 app = FastAPI(
     title="DecisionDNA API Gateway",
     description="Routes all client requests to appropriate microservices",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -82,6 +116,39 @@ SERVICES = {
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 redis_client = None
+
+# One client for the whole process, created in lifespan.
+http_client: Optional[httpx.AsyncClient] = None
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+# Must stay >= the frontend's client timeout, otherwise the gateway aborts a
+# slow-but-working pipeline first and masks where the real delay is.
+PROXY_TIMEOUT_S = _env_float("PROXY_TIMEOUT_S", 120.0)
+# Health probes are liveness checks, not work: a service that cannot answer in
+# a second and a half is not healthy from a caller's point of view.
+HEALTH_TIMEOUT_S = _env_float("HEALTH_TIMEOUT_S", 1.5)
+HEALTH_CACHE_TTL_S = _env_float("HEALTH_CACHE_TTL_S", 10.0)
+RATE_LIMIT_MAX = _env_int("RATE_LIMIT_MAX", 100)
+RATE_LIMIT_WINDOW_S = _env_int("RATE_LIMIT_WINDOW_S", 60)
+
+# Process-local health cache. Deliberately not Redis: this is a liveness
+# snapshot, it is cheap to recompute, and a per-worker copy is correct.
+_health_cache: Optional[Tuple[float, Dict[str, Any]]] = None
+_health_lock = asyncio.Lock()
 
 # ── Postgres (user accounts) ──────────────────────────────────
 # Not containerized — connects out to the native Postgres instance running
@@ -132,38 +199,30 @@ async def connect_postgres_with_retry(attempts: int = 5, delay_s: float = 2.0) -
     raise RuntimeError(f"Could not connect to Postgres after {attempts} attempts: {last_err}")
 
 
-@app.on_event("startup")
-async def startup():
-    global redis_client, db_pool
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-    try:
-        db_pool = await connect_postgres_with_retry()
-        log.info("postgres: connected, schema ensured")
-    except Exception:
-        log.exception("postgres: failed to connect at startup; auth routes will 503 until it recovers")
-        db_pool = None
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    if redis_client:
-        await redis_client.close()
-    if db_pool:
-        await db_pool.close()
-
-
 # ── Rate Limiting ──────────────────────────────────────────────
 
 async def rate_limit(request: Request):
-    """Simple IP-based rate limiter using Redis."""
+    """Simple IP-based rate limiter using Redis.
+
+    Semantics are unchanged (fixed 60s window, 100 requests per IP). The only
+    difference is that INCR and EXPIRE now travel in one pipeline instead of two
+    round trips on every request. `EXPIRE ... NX` sets the TTL only when the key
+    has none, which is exactly the old `if current == 1` condition, minus the
+    race where two concurrent first-requests could both skip the EXPIRE.
+    """
     if not redis_client:
         return
     ip = request.client.host
     key = f"ratelimit:{ip}"
-    current = await redis_client.incr(key)
-    if current == 1:
-        await redis_client.expire(key, 60)  # 60 second window
-    if current > 100:  # 100 requests per minute
+    try:
+        pipe = redis_client.pipeline(transaction=False)
+        pipe.incr(key)
+        pipe.expire(key, RATE_LIMIT_WINDOW_S, nx=True)
+        current, _ = await pipe.execute()
+    except Exception as exc:  # noqa: BLE001 - never fail a request on limiter trouble
+        log.warning("rate_limit: redis unavailable (%r); allowing request", exc)
+        return
+    if int(current) > RATE_LIMIT_MAX:
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
 
@@ -247,28 +306,30 @@ async def proxy(service_name: str, path: str, method: str, body=None, params=Non
     url = f"{base}{path}"
     rid = uuid.uuid4().hex[:8]
     headers = {"x-request-id": rid}
-    # Timeout must be >= the frontend's client timeout (90s), otherwise the gateway
-    # aborts a slow-but-working pipeline first and masks where the real delay is.
     start = time.perf_counter()
     log.info("→ proxy[%s] %s %s (rid=%s)", service_name, method, url, rid)
-    async with httpx.AsyncClient(timeout=120) as client:
-        try:
-            if method == "GET":
-                resp = await client.get(url, params=params, headers=headers)
-            elif method == "POST":
-                resp = await client.post(url, json=body, headers=headers)
-            else:
-                raise HTTPException(status_code=405, detail="Method not allowed")
-        except httpx.ConnectError as e:
-            log.error("✗ proxy[%s] connection refused: %s (rid=%s)", service_name, e, rid)
-            raise HTTPException(status_code=503, detail=f"{service_name} is unavailable (connection refused)")
-        except httpx.TimeoutException as e:
-            dur = (time.perf_counter() - start) * 1000
-            log.error("✗ proxy[%s] timed out after %.0fms: %r (rid=%s)", service_name, dur, e, rid)
-            raise HTTPException(status_code=504, detail=f"{service_name} timed out")
-        except httpx.HTTPError as e:
-            log.exception("✗ proxy[%s] transport error (rid=%s)", service_name, rid)
-            raise HTTPException(status_code=502, detail=f"{service_name} transport error: {e}")
+
+    client = http_client
+    if client is None:  # lifespan did not run (e.g. a unit test importing the app)
+        raise HTTPException(status_code=503, detail="Gateway HTTP client is not ready")
+
+    try:
+        if method == "GET":
+            resp = await client.get(url, params=params, headers=headers)
+        elif method == "POST":
+            resp = await client.post(url, json=body, headers=headers)
+        else:
+            raise HTTPException(status_code=405, detail="Method not allowed")
+    except httpx.ConnectError as e:
+        log.error("✗ proxy[%s] connection refused: %s (rid=%s)", service_name, e, rid)
+        raise HTTPException(status_code=503, detail=f"{service_name} is unavailable (connection refused)")
+    except httpx.TimeoutException as e:
+        dur = (time.perf_counter() - start) * 1000
+        log.error("✗ proxy[%s] timed out after %.0fms: %r (rid=%s)", service_name, dur, e, rid)
+        raise HTTPException(status_code=504, detail=f"{service_name} timed out")
+    except httpx.HTTPError as e:
+        log.exception("✗ proxy[%s] transport error (rid=%s)", service_name, rid)
+        raise HTTPException(status_code=502, detail=f"{service_name} transport error: {e}")
 
     dur = (time.perf_counter() - start) * 1000
     log.info("← proxy[%s] %s %.0fms (rid=%s)", service_name, resp.status_code, dur, rid)
@@ -287,22 +348,54 @@ async def proxy(service_name: str, path: str, method: str, body=None, params=Non
 
 # ── Routes ─────────────────────────────────────────────────────
 
-@app.get("/health")
-async def gateway_health():
-    """Check health of all downstream services."""
-    statuses = {}
-    async with httpx.AsyncClient(timeout=5) as client:
-        for name, url in SERVICES.items():
-            try:
-                r = await client.get(f"{url}/health")
-                statuses[name] = "healthy" if r.status_code == 200 else "degraded"
-                if r.status_code != 200:
-                    log.warning("health: %s at %s returned %s", name, url, r.status_code)
-            except Exception as e:
-                statuses[name] = "unreachable"
-                log.warning("health: %s at %s unreachable: %r", name, url, e)
+async def _probe(client: httpx.AsyncClient, name: str, url: str) -> Tuple[str, str]:
+    try:
+        r = await client.get(f"{url}/health", timeout=HEALTH_TIMEOUT_S)
+        if r.status_code != 200:
+            log.warning("health: %s at %s returned %s", name, url, r.status_code)
+            return name, "degraded"
+        return name, "healthy"
+    except Exception as e:  # noqa: BLE001
+        log.warning("health: %s at %s unreachable: %r", name, url, e)
+        return name, "unreachable"
+
+
+async def _collect_health() -> Dict[str, Any]:
+    """Probe every service at once.
+
+    Was a sequential for-loop with a 5s per-service timeout: five services meant
+    a 25s worst case, and the frontend polled it from every open tab.
+    """
+    client = http_client
+    if client is None:
+        return {"gateway": "healthy", "services": {}, "timestamp": time.time()}
+    results = await asyncio.gather(
+        *(_probe(client, name, url) for name, url in SERVICES.items()),
+        return_exceptions=False,
+    )
+    statuses = dict(results)
     log.info("health check: %s", statuses)
     return {"gateway": "healthy", "services": statuses, "timestamp": time.time()}
+
+
+@app.get("/health")
+async def gateway_health():
+    """Check health of all downstream services (concurrently, with a short TTL cache)."""
+    global _health_cache
+    now = time.monotonic()
+    cached = _health_cache
+    if cached is not None and (now - cached[0]) < HEALTH_CACHE_TTL_S:
+        return cached[1]
+
+    async with _health_lock:
+        # Re-check: another coroutine may have refreshed while we waited.
+        cached = _health_cache
+        now = time.monotonic()
+        if cached is not None and (now - cached[0]) < HEALTH_CACHE_TTL_S:
+            return cached[1]
+        payload = await _collect_health()
+        _health_cache = (time.monotonic(), payload)
+        return payload
 
 
 # Auth routes
